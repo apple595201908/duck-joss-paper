@@ -39,3 +39,6 @@ next-env.d.ts
 
 # TypeScript incremental cache
 *.tsbuildinfo
+
+# Local visual reference (not shipped with the game)
+/美術參考.jpg

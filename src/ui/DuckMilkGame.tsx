@@ -27,12 +27,10 @@ function copyState(state: GameState): GameState {
 
 export default function DuckMilkGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [snapshot, setSnapshot] = useState<GameState>(() => createGameState(
-    typeof window === 'undefined' ? null : readBest(),
-  ));
+  const [snapshot, setSnapshot] = useState<GameState>(() => createGameState());
   const gameRef = useRef<GameState>(snapshot);
   const audioRef = useRef<GameAudio | null>(null);
-  const [muted, setMuted] = useState(() => typeof window !== 'undefined' && readMuted());
+  const [muted, setMuted] = useState(false);
 
   const publish = useCallback(() => {
     setSnapshot(copyState(gameRef.current));
@@ -76,9 +74,18 @@ export default function DuckMilkGame() {
   }, [handleTransition, publish]);
 
   useEffect(() => {
-    audioRef.current = new GameAudio(readMuted());
-    return () => audioRef.current?.destroy();
-  }, []);
+    const initialMuted = readMuted();
+    audioRef.current = new GameAudio(initialMuted);
+    const hydrationFrame = window.requestAnimationFrame(() => {
+      setMuted(initialMuted);
+      gameRef.current = { ...gameRef.current, bestTimeMs: readBest() };
+      publish();
+    });
+    return () => {
+      window.cancelAnimationFrame(hydrationFrame);
+      audioRef.current?.destroy();
+    };
+  }, [publish]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -160,6 +167,8 @@ export default function DuckMilkGame() {
 
   const progressRatio = Math.min(1, (snapshot.progress + snapshot.charge) / faithfulPreset.capacity);
   const riskRatio = Math.min(1, snapshot.risk / faithfulPreset.riskLimit);
+  const milkRemainingRatio = 1 - progressRatio;
+  const dangerClass = riskRatio >= 0.72 ? 'critical' : riskRatio >= faithfulPreset.warningRatio ? 'warning' : 'quiet';
   const showPrimary = snapshot.scene === 'title' || snapshot.scene === 'clear' || snapshot.scene === 'fail' || snapshot.paused;
 
   return (
@@ -194,7 +203,7 @@ export default function DuckMilkGame() {
           </div>
         </header>
 
-        <div className="game-viewport">
+        <div className={`game-viewport ${dangerClass}`}>
           <canvas
             ref={canvasRef}
             width={400}
@@ -209,15 +218,15 @@ export default function DuckMilkGame() {
         <aside className="game-panel" aria-label="遊戲狀態與操作">
           <div className="meter-group">
             <div className="meter-label">
-              <span>牛奶喝完</span>
-              <strong>{Math.round(progressRatio * 100)}%</strong>
+              <span>牛奶剩餘</span>
+              <strong>{Math.round(milkRemainingRatio * 100)}%</strong>
             </div>
-            <div className="meter-track milk-track" role="progressbar" aria-label="牛奶進度" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progressRatio * 100)}>
-              <span style={{ width: `${progressRatio * 100}%` }} />
+            <div className="meter-track milk-track" role="progressbar" aria-label="牛奶剩餘量" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(milkRemainingRatio * 100)}>
+              <span style={{ width: `${milkRemainingRatio * 100}%` }} />
             </div>
           </div>
 
-          <div className={`meter-group risk-meter ${riskRatio < faithfulPreset.warningRatio ? 'quiet' : ''}`}>
+          <div className={`meter-group risk-meter ${dangerClass}`}>
             <div className="meter-label">
               <span>{riskRatio < faithfulPreset.warningRatio ? '呼吸很順' : riskRatio > 0.72 ? '危險！先休息' : '有點急囉'}</span>
               <strong>{riskRatio < faithfulPreset.warningRatio ? 'OK' : `${Math.round(riskRatio * 100)}%`}</strong>
