@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://duck-milk-rhythm.yoyo50582.chatgpt.site'),
   title: '鴨鴨喝牛奶｜60 秒節奏遊戲',
   description: '按住喝一口、放開吞下去！在 60 秒內幫原創鴨鴨喝完牛奶，又別喝得太急。',
   applicationName: '鴨鴨喝牛奶',
