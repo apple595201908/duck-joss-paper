@@ -168,7 +168,7 @@ export default function DuckMilkGame() {
   const progressRatio = Math.min(1, (snapshot.progress + snapshot.charge) / faithfulPreset.capacity);
   const riskRatio = Math.min(1, snapshot.risk / faithfulPreset.riskLimit);
   const milkRemainingRatio = 1 - progressRatio;
-  const dangerClass = riskRatio >= 0.72 ? 'critical' : riskRatio >= faithfulPreset.warningRatio ? 'warning' : 'quiet';
+  const dangerClass = riskRatio >= faithfulPreset.criticalRatio ? 'critical' : riskRatio >= faithfulPreset.warningRatio ? 'warning' : 'quiet';
   const showPrimary = snapshot.scene === 'title' || snapshot.scene === 'clear' || snapshot.scene === 'fail' || snapshot.paused;
 
   return (
@@ -228,7 +228,7 @@ export default function DuckMilkGame() {
 
           <div className={`meter-group risk-meter ${dangerClass}`}>
             <div className="meter-label">
-              <span>{riskRatio < faithfulPreset.warningRatio ? '呼吸很順' : riskRatio > 0.72 ? '危險！先休息' : '有點急囉'}</span>
+              <span>{riskRatio < faithfulPreset.warningRatio ? '呼吸很順' : riskRatio >= faithfulPreset.criticalRatio ? '危險！先休息' : '有點急囉'}</span>
               <strong>{riskRatio < faithfulPreset.warningRatio ? 'OK' : `${Math.round(riskRatio * 100)}%`}</strong>
             </div>
             <div className="meter-track danger-track" role="progressbar" aria-label="噴奶危險值" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(riskRatio * 100)}>

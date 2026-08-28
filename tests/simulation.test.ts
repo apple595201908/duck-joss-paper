@@ -11,6 +11,31 @@ function playing(overrides: Partial<GameState> = {}): GameState {
   };
 }
 
+function playCadence(holdFrames: number, restFrames: number, restAboveRatio?: number): GameState {
+  let state = playing();
+  for (let round = 0; round < 500 && state.scene === 'playing'; round += 1) {
+    state = applyGameEvent(state, { type: 'press' });
+    for (let frame = 0; frame < holdFrames && state.scene === 'playing'; frame += 1) {
+      state = stepSimulation(state);
+    }
+    state = applyGameEvent(state, { type: 'release' });
+
+    let rested = 0;
+    while (state.scene === 'playing' && rested < restFrames) {
+      state = stepSimulation(state);
+      rested += 1;
+    }
+    while (
+      state.scene === 'playing'
+      && restAboveRatio !== undefined
+      && state.risk / faithfulPreset.riskLimit > restAboveRatio
+    ) {
+      state = stepSimulation(state);
+    }
+  }
+  return state;
+}
+
 describe('faithful duck milk simulation', () => {
   it('fails by timeout after 60 seconds without input', () => {
     let state = playing();
@@ -23,7 +48,7 @@ describe('faithful duck milk simulation', () => {
   });
 
   it('clears at capacity, freezes time, and keeps only the better record', () => {
-    let state = playing({ progress: 349, charge: 1, holding: true, elapsedMs: 9_876, bestTimeMs: 12_000 });
+    let state = playing({ progress: faithfulPreset.capacity - 1, charge: 2, holding: true, elapsedMs: 9_876, bestTimeMs: 12_000 });
     state = applyGameEvent(state, { type: 'release' });
     expect(state.scene).toBe('clear');
     expect(state.progress).toBe(faithfulPreset.capacity);
@@ -34,7 +59,7 @@ describe('faithful duck milk simulation', () => {
     expect(frozen.elapsedMs).toBe(9_876);
 
     const worseAttempt = applyGameEvent(
-      playing({ progress: 349, charge: 1, holding: true, elapsedMs: 14_000, bestTimeMs: 9_876 }),
+      playing({ progress: faithfulPreset.capacity - 1, charge: 2, holding: true, elapsedMs: 14_000, bestTimeMs: 9_876 }),
       { type: 'release' },
     );
     expect(worseAttempt.bestTimeMs).toBe(9_876);
@@ -49,13 +74,15 @@ describe('faithful duck milk simulation', () => {
     expect(state.failureReason).toBe('spew');
   });
 
-  it('uses low risk below 16 charge and high risk at 16 charge', () => {
-    const low = applyGameEvent(playing({ charge: 15.99, holding: true }), { type: 'release' });
-    const high = applyGameEvent(playing({ charge: 16, holding: true }), { type: 'release' });
+  it('uses low risk below the charge boundary and high risk at the boundary', () => {
+    const lowCharge = faithfulPreset.riskChargeBoundary - 0.01;
+    const highCharge = faithfulPreset.riskChargeBoundary;
+    const low = applyGameEvent(playing({ charge: lowCharge, holding: true }), { type: 'release' });
+    const high = applyGameEvent(playing({ charge: highCharge, holding: true }), { type: 'release' });
     const baseRisk = faithfulPreset.riskBase * (1 + faithfulPreset.riskGrowth);
 
-    expect(low.risk).toBeCloseTo(baseRisk + 15.99 * faithfulPreset.riskChargeLow, 7);
-    expect(high.risk).toBeCloseTo(baseRisk + 16 * faithfulPreset.riskChargeHigh, 7);
+    expect(low.risk).toBeCloseTo(baseRisk + lowCharge * faithfulPreset.riskChargeLow, 7);
+    expect(high.risk).toBeCloseTo(baseRisk + highCharge * faithfulPreset.riskChargeHigh, 7);
   });
 
   it.each([
@@ -79,21 +106,24 @@ describe('faithful duck milk simulation', () => {
   });
 
   it.each([
-    [90, 12],
-    [91, 11],
-    [99, 11],
-    [100, 10],
-  ])('applies the correct timing bonus at animation frame %i', (animationFrame, expectedProgress) => {
+    [90, 0.20],
+    [91, 0.10],
+    [99, 0.10],
+    [100, 0],
+  ])('applies the correct timing bonus at animation frame %i', (animationFrame, expectedBonus) => {
+    const charge = 10;
+    const efficiency = faithfulPreset.sipEfficiencyBase
+      + faithfulPreset.sipEfficiencyChargeBonus * (charge / faithfulPreset.chargeCap);
     const state = applyGameEvent(
-      playing({ animationFrame, charge: 10, holding: true }),
+      playing({ animationFrame, charge, holding: true }),
       { type: 'release' },
     );
-    expect(state.progress).toBeCloseTo(expectedProgress, 7);
+    expect(state.progress).toBeCloseTo(charge * efficiency * (1 + expectedBonus), 7);
   });
 
   it('prioritizes clear when progress and risk cross limits together', () => {
     const state = applyGameEvent(
-      playing({ progress: 349, risk: 159, charge: 1, holding: true }),
+      playing({ progress: faithfulPreset.capacity - 1, risk: faithfulPreset.riskLimit - 1, charge: 2, holding: true }),
       { type: 'release' },
     );
     expect(state.scene).toBe('clear');
@@ -120,5 +150,27 @@ describe('faithful duck milk simulation', () => {
     expect(paused.holding).toBe(false);
     expect(paused.charge).toBe(0);
     expect(stepSimulation(paused).elapsedMs).toBe(1_500);
+  });
+
+  it('punishes reckless gulping before the bottle is finished', () => {
+    const state = playCadence(10, 2);
+    expect(state.scene).toBe('fail');
+    expect(state.failureReason).toBe('spew');
+    expect(state.progress).toBeLessThan(faithfulPreset.capacity * 0.75);
+  });
+
+  it('rewards a fast risk-managed rhythm without making the round instant', () => {
+    const state = playCadence(10, 0, 0.75);
+    expect(state.scene).toBe('clear');
+    expect(state.finalTimeMs).toBeGreaterThan(22_000);
+    expect(state.finalTimeMs).toBeLessThan(35_000);
+  });
+
+  it('lets a conservative rhythm finish safely within the time limit', () => {
+    const state = playCadence(6, 10);
+    expect(state.scene).toBe('clear');
+    expect(state.finalTimeMs).toBeGreaterThan(18_000);
+    expect(state.finalTimeMs).toBeLessThan(30_000);
+    expect(state.risk).toBeLessThan(faithfulPreset.riskLimit * faithfulPreset.warningRatio);
   });
 });

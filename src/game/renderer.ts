@@ -31,12 +31,23 @@ export function createGameRenderer(canvas: HTMLCanvasElement): GameRenderer {
 
   const render = (state: GameState) => {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    if (canvas.width !== 400 * dpr || canvas.height !== 300 * dpr) {
-      canvas.width = 400 * dpr;
-      canvas.height = 300 * dpr;
+    const bounds = canvas.getBoundingClientRect();
+    const viewWidth = Math.max(1, Math.round(bounds.width));
+    const viewHeight = Math.max(1, Math.round(bounds.height));
+    const pixelWidth = Math.round(viewWidth * dpr);
+    const pixelHeight = Math.round(viewHeight * dpr);
+    if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+      canvas.width = pixelWidth;
+      canvas.height = pixelHeight;
     }
     context.setTransform(dpr, 0, 0, dpr, 0, 0);
     context.imageSmoothingEnabled = true;
+
+    drawRoom(context, backgroundReady ? background : null, viewWidth, viewHeight);
+
+    const stageScale = Math.min(viewWidth / 400, viewHeight / 300);
+    const stageX = (viewWidth - 400 * stageScale) / 2;
+    const stageY = (viewHeight - 300 * stageScale) / 2;
 
     const warningProgress = Math.max(0, state.risk / faithfulPreset.riskLimit - faithfulPreset.warningRatio);
     const shakeAllowed = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -45,6 +56,8 @@ export function createGameRenderer(canvas: HTMLCanvasElement): GameRenderer {
       : 0;
 
     context.save();
+    context.translate(stageX, stageY);
+    context.scale(stageScale, stageScale);
     if (shakeStrength) {
       context.translate(
         Math.sin(state.animationFrame * 2.47) * shakeStrength,
@@ -52,7 +65,6 @@ export function createGameRenderer(canvas: HTMLCanvasElement): GameRenderer {
       );
     }
 
-    drawRoom(context, backgroundReady ? background : null);
     drawDangerVignette(context, state);
     drawCharacter(context, state, posesReady ? poses : null, atlasReady ? atlas : null);
     drawBottle(context, state);
@@ -72,65 +84,41 @@ export function createGameRenderer(canvas: HTMLCanvasElement): GameRenderer {
   };
 }
 
-function drawRoom(ctx: CanvasRenderingContext2D, background: HTMLImageElement | null) {
+function drawRoom(
+  ctx: CanvasRenderingContext2D,
+  background: HTMLImageElement | null,
+  width: number,
+  height: number,
+) {
   if (background) {
-    ctx.drawImage(background, 0, 0, 400, 300);
-    const wash = ctx.createLinearGradient(0, 0, 0, 300);
+    const imageRatio = background.naturalWidth / background.naturalHeight;
+    const viewRatio = width / height;
+    let sourceX = 0;
+    let sourceY = 0;
+    let sourceWidth = background.naturalWidth;
+    let sourceHeight = background.naturalHeight;
+    if (viewRatio > imageRatio) {
+      sourceHeight = background.naturalWidth / viewRatio;
+      sourceY = (background.naturalHeight - sourceHeight) / 2;
+    } else {
+      sourceWidth = background.naturalHeight * viewRatio;
+      sourceX = (background.naturalWidth - sourceWidth) / 2;
+    }
+    ctx.drawImage(background, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, width, height);
+    const wash = ctx.createLinearGradient(0, 0, 0, height);
     wash.addColorStop(0, '#17206008');
     wash.addColorStop(0.72, '#ffffff00');
     wash.addColorStop(1, '#33206a1f');
     ctx.fillStyle = wash;
-    ctx.fillRect(0, 0, 400, 300);
+    ctx.fillRect(0, 0, width, height);
     return;
   }
-  const sky = ctx.createLinearGradient(0, 0, 0, 300);
+  const sky = ctx.createLinearGradient(0, 0, 0, height);
   sky.addColorStop(0, '#fff3bd');
   sky.addColorStop(0.62, '#b7e6d8');
   sky.addColorStop(1, '#7fc2ae');
   ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, 400, 300);
-
-  ctx.fillStyle = '#fff9e8';
-  ctx.fillRect(0, 207, 400, 93);
-  ctx.fillStyle = '#e8bd72';
-  ctx.fillRect(0, 207, 400, 8);
-
-  ctx.fillStyle = '#ffffff9c';
-  roundedRect(ctx, 20, 42, 90, 74, 18);
-  ctx.fill();
-  ctx.strokeStyle = '#85bfae';
-  ctx.lineWidth = 5;
-  ctx.beginPath();
-  ctx.moveTo(65, 44);
-  ctx.lineTo(65, 114);
-  ctx.moveTo(22, 79);
-  ctx.lineTo(108, 79);
-  ctx.stroke();
-
-  ctx.fillStyle = '#f3a953';
-  ctx.beginPath();
-  ctx.arc(356, 52, 23, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = '#f6c66f';
-  ctx.lineWidth = 3;
-  for (let i = 0; i < 8; i += 1) {
-    const angle = i * Math.PI / 4;
-    ctx.beginPath();
-    ctx.moveTo(356 + Math.cos(angle) * 29, 52 + Math.sin(angle) * 29);
-    ctx.lineTo(356 + Math.cos(angle) * 38, 52 + Math.sin(angle) * 38);
-    ctx.stroke();
-  }
-
-  ctx.fillStyle = '#d5a561';
-  ctx.fillRect(0, 270, 400, 30);
-  ctx.strokeStyle = '#bd8a4a';
-  ctx.lineWidth = 1;
-  for (let x = 0; x < 400; x += 42) {
-    ctx.beginPath();
-    ctx.moveTo(x, 271);
-    ctx.lineTo(x - 4, 300);
-    ctx.stroke();
-  }
+  ctx.fillRect(0, 0, width, height);
 }
 
 function drawHud(ctx: CanvasRenderingContext2D, state: GameState) {
@@ -217,7 +205,7 @@ function drawCharacter(
       ? 'success'
       : state.scene === 'fail' && state.failureReason === 'spew'
         ? 'spew'
-        : riskRatio >= 0.72
+        : riskRatio >= faithfulPreset.criticalRatio
           ? 'nearChoke'
           : state.holding && state.speedLevel >= 2
             ? 'fastDrink'
@@ -342,7 +330,7 @@ function drawWarning(
   if (ratio < faithfulPreset.warningRatio || state.scene === 'title') return;
   const normalized = (ratio - faithfulPreset.warningRatio) / (1 - faithfulPreset.warningRatio);
   const size = 55 + normalized * 55 + Math.sin(state.animationFrame * 0.3) * 4;
-  const name: FrameName = ratio > 0.72 ? 'danger_red' : 'warning_yellow';
+  const name: FrameName = ratio >= faithfulPreset.criticalRatio ? 'danger_red' : 'warning_yellow';
   const x = 13 - normalized * 7;
   const y = 61 - normalized * 8;
   const centerX = x + size / 2;
@@ -350,14 +338,14 @@ function drawWarning(
 
   ctx.save();
   ctx.globalAlpha = 0.42 + normalized * 0.38;
-  ctx.strokeStyle = ratio > 0.72 ? '#ff496a' : '#ffd84e';
+  ctx.strokeStyle = ratio >= faithfulPreset.criticalRatio ? '#ff496a' : '#ffd84e';
   ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.arc(centerX, centerY, size * (0.48 + Math.sin(state.animationFrame * 0.22) * 0.08), 0, Math.PI * 2);
   ctx.stroke();
   ctx.globalAlpha = 1;
-  drawStar(ctx, centerX, centerY, size / 2, ratio > 0.72 ? '#ff4a5d' : '#ffda3f');
-  if (ratio > 0.72) {
+  drawStar(ctx, centerX, centerY, size / 2, ratio >= faithfulPreset.criticalRatio ? '#ff4a5d' : '#ffda3f');
+  if (ratio >= faithfulPreset.criticalRatio) {
     ctx.strokeStyle = '#fff4a8';
     ctx.lineWidth = 3;
     for (let i = 0; i < 7; i += 1) {
@@ -376,7 +364,7 @@ function drawWarning(
     drawFrame(ctx, atlas, name, x, y, size, size);
   }
 
-  if (ratio > 0.72 && state.scene === 'playing') {
+  if (ratio >= faithfulPreset.criticalRatio && state.scene === 'playing') {
     ctx.font = '1000 13px ui-rounded, system-ui';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';

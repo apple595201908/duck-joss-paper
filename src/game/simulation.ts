@@ -79,12 +79,14 @@ export function applyGameEvent(state: GameState, event: GameEvent): GameState {
 
   const phase = (state.animationFrame + 20) % faithfulPreset.animationCycleFrames;
   const timingBonus = phase === 0 ? 0.20 : phase <= 9 ? 0.10 : 0;
+  const sipEfficiency = faithfulPreset.sipEfficiencyBase
+    + faithfulPreset.sipEfficiencyChargeBonus * (state.charge / faithfulPreset.chargeCap);
 
   return checkRoundEnd({
     ...state,
     holding: false,
     risk: nextRisk,
-    progress: state.progress + state.charge * (1 + timingBonus),
+    progress: state.progress + state.charge * sipEfficiency * (1 + timingBonus),
     charge: 0,
     clicksInWindow: state.clicksInWindow + 1,
   });

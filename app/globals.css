@@ -12,11 +12,11 @@
 }
 
 * { box-sizing: border-box; }
-html, body { min-height: 100%; }
+html, body { width: 100%; height: 100%; min-height: 100%; }
 
 body {
   margin: 0;
-  overflow-x: hidden;
+  overflow: hidden;
   color: var(--ink);
   background:
     radial-gradient(circle at 11% 16%, #7ef4d677 0 5.5%, transparent 6%),
@@ -55,23 +55,28 @@ body::after {
 button { font: inherit; }
 
 .game-shell {
-  min-height: 100dvh;
+  width: 100vw;
+  height: 100dvh;
+  min-height: 0;
   display: grid;
-  place-items: center;
-  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  place-items: stretch;
+  padding: 0;
 }
 
 .game-card {
-  width: min(100%, 740px);
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 230px;
-  grid-template-rows: auto auto;
-  gap: 14px 18px;
-  padding: clamp(14px, 2.5vw, 22px);
-  border: 4px solid #30266f;
-  border-radius: 32px;
+  grid-template-columns: minmax(0, 1fr) clamp(220px, 26vw, 310px);
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  border: 0;
+  border-radius: 0;
   background: #fff7d9f2;
-  box-shadow: 0 0 0 5px #71ead0, 0 0 0 9px #fff279, 0 28px 70px #17114b66, inset 0 1px 0 white;
+  box-shadow: none;
   backdrop-filter: blur(13px);
 }
 
@@ -82,6 +87,11 @@ button { font: inherit; }
   justify-content: space-between;
   min-width: 0;
   gap: 10px;
+  padding: 10px clamp(12px, 2.4vw, 26px);
+  border-bottom: 3px solid #30266f;
+  background: linear-gradient(90deg, #fffbe7f5, #fff2b8f5 62%, #8cebd9f5);
+  box-shadow: 0 5px 18px #24195c30;
+  z-index: 4;
 }
 
 .title-lockup {
@@ -192,13 +202,17 @@ button { font: inherit; }
 .game-viewport {
   position: relative;
   width: 100%;
-  align-self: center;
-  aspect-ratio: 4 / 3;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  align-self: stretch;
+  aspect-ratio: auto;
   overflow: hidden;
-  border: 6px solid #fff;
-  border-radius: 24px;
-  background: #bfe7da;
-  box-shadow: 0 0 0 4px #30266f, 0 13px 28px #20175c5c, inset 0 0 0 1px #83e5d1;
+  border: 0;
+  border-right: 3px solid #30266f;
+  border-radius: 0;
+  background: #bfe7da url('/assets/game-background-v2.png') center / cover no-repeat;
+  box-shadow: inset 0 0 0 1px #83e5d1;
   isolation: isolate;
 }
 
@@ -235,10 +249,10 @@ button { font: inherit; }
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 15px;
-  padding: 15px 13px;
-  border: 3px solid #30266f;
-  border-radius: 22px;
+  gap: clamp(12px, 2.2vh, 22px);
+  padding: clamp(15px, 3vh, 30px) clamp(14px, 2vw, 25px);
+  border: 0;
+  border-radius: 0;
   background: linear-gradient(160deg, #fffdf1, #fff1ba);
   box-shadow: inset 0 2px #fff, 0 6px 0 #65cbb8;
 }
@@ -353,9 +367,10 @@ button { font: inherit; }
 }
 
 @media (max-width: 680px) {
-  .game-card { width: min(100%, 520px); grid-template-columns: 1fr; grid-template-rows: auto auto auto; gap: 12px; border-radius: 26px; }
+  .game-card { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr) auto; }
   .game-header { grid-column: 1; }
-  .game-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+  .game-viewport { border-right: 0; border-bottom: 3px solid #30266f; }
+  .game-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 12px; padding: 11px max(12px, env(safe-area-inset-right)) max(11px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
   .primary-button, .play-coach, .micro-tip { grid-column: 1 / -1; }
   .primary-button { width: min(100%, 360px); justify-self: center; min-height: 63px; }
   .play-coach { width: min(100%, 360px); justify-self: center; min-height: 60px; }
@@ -363,8 +378,7 @@ button { font: inherit; }
 }
 
 @media (max-width: 390px) {
-  .game-shell { padding: max(9px, env(safe-area-inset-top)) max(9px, env(safe-area-inset-right)) max(9px, env(safe-area-inset-bottom)) max(9px, env(safe-area-inset-left)); }
-  .game-card { padding: 12px; gap: 10px; border-radius: 22px; }
+  .game-header { padding: 8px 9px; }
   .logo-duck { width: 35px; height: 35px; flex-basis: 35px; }
   .title-lockup strong { font-size: 18px; }
   .title-lockup span:not(.logo-duck) { margin-top: 3px; font-size: 8px; }
@@ -372,7 +386,6 @@ button { font: inherit; }
   .best-chip span { display: none; }
   .best-chip strong { font-size: 12px; }
   .icon-button { width: 35px; height: 35px; }
-  .game-viewport { border-width: 4px; border-radius: 19px; }
   .game-panel { gap: 9px; }
   .meter-group { gap: 4px; }
   .primary-button { min-height: 59px; }
@@ -381,11 +394,10 @@ button { font: inherit; }
 }
 
 @media (orientation: landscape) and (max-height: 620px) {
-  .game-shell { padding: 7px; }
-  .game-card { width: min(100%, 820px); grid-template-columns: minmax(0, 1fr) 220px; grid-template-rows: auto minmax(0, 1fr); gap: 7px 14px; padding: 9px 12px; border-radius: 23px; }
+  .game-card { grid-template-columns: minmax(0, 1fr) clamp(205px, 27vw, 245px); grid-template-rows: auto minmax(0, 1fr); }
   .game-header { grid-column: 1 / -1; min-height: 37px; }
-  .game-viewport { width: auto; height: min(76vh, 360px); justify-self: center; }
-  .game-panel { display: flex; gap: 10px; }
+  .game-viewport { width: 100%; height: 100%; justify-self: stretch; }
+  .game-panel { display: flex; gap: 10px; padding: 10px 12px; }
   .primary-button, .play-coach { min-height: 60px; }
   .micro-tip { font-size: 9px; }
 }
