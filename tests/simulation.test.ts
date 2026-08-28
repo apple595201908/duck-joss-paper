@@ -1,29 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { faithfulPreset } from '../src/game/config';
+import { CHOKE_REACTION_FRAMES, faithfulPreset } from '../src/game/config';
+import {
+  getDisplayedElapsedMs,
+  getMilkRemainingPercent,
+  getRiskReliefPerFrame,
+  getTapMilkAmount,
+} from '../src/game/metrics';
 import { createGameState, type GameState } from '../src/game/model';
 import { applyGameEvent, stepSimulation } from '../src/game/simulation';
 
 function playing(overrides: Partial<GameState> = {}): GameState {
-  return {
-    ...createGameState(),
-    scene: 'playing',
-    ...overrides,
-  };
+  return { ...createGameState(), scene: 'playing', ...overrides };
 }
 
-function playCadence(holdFrames: number, restFrames: number, restAboveRatio?: number): GameState {
+function playTapCadence(intervalFrames: number, restAboveRatio?: number): GameState {
   let state = playing();
-  for (let round = 0; round < 500 && state.scene === 'playing'; round += 1) {
+  for (let tap = 0; tap < 500 && state.scene === 'playing'; tap += 1) {
     state = applyGameEvent(state, { type: 'press' });
-    for (let frame = 0; frame < holdFrames && state.scene === 'playing'; frame += 1) {
+    for (let frame = 0; frame < intervalFrames && state.scene === 'playing'; frame += 1) {
       state = stepSimulation(state);
-    }
-    state = applyGameEvent(state, { type: 'release' });
-
-    let rested = 0;
-    while (state.scene === 'playing' && rested < restFrames) {
-      state = stepSimulation(state);
-      rested += 1;
     }
     while (
       state.scene === 'playing'
@@ -33,10 +28,11 @@ function playCadence(holdFrames: number, restFrames: number, restAboveRatio?: nu
       state = stepSimulation(state);
     }
   }
+  while (state.scene === 'choking') state = stepSimulation(state);
   return state;
 }
 
-describe('faithful duck milk simulation', () => {
+describe('duck milk tap simulation', () => {
   it('fails by timeout after 60 seconds without input', () => {
     let state = playing();
     for (let frame = 0; frame < 3_700 && state.scene === 'playing'; frame += 1) {
@@ -47,130 +43,137 @@ describe('faithful duck milk simulation', () => {
     expect(state.elapsedMs).toBeGreaterThanOrEqual(faithfulPreset.timeLimitMs);
   });
 
+  it('drinks one discrete sip on press and ignores release', () => {
+    const initial = playing();
+    const tapped = applyGameEvent(initial, { type: 'press' });
+    expect(tapped.progress).toBeCloseTo(getTapMilkAmount(0), 7);
+    expect(tapped.drinkAnimationFrames).toBe(faithfulPreset.tapDrinkAnimationFrames);
+    expect(applyGameEvent(tapped, { type: 'release' })).toEqual(tapped);
+  });
+
   it('clears at capacity, freezes time, and keeps only the better record', () => {
-    let state = playing({ progress: faithfulPreset.capacity - 1, charge: 2, holding: true, elapsedMs: 9_876, bestTimeMs: 12_000 });
-    state = applyGameEvent(state, { type: 'release' });
+    let state = applyGameEvent(
+      playing({ progress: faithfulPreset.capacity - 1, elapsedMs: 9_876, bestTimeMs: 12_000 }),
+      { type: 'press' },
+    );
     expect(state.scene).toBe('clear');
     expect(state.progress).toBe(faithfulPreset.capacity);
     expect(state.finalTimeMs).toBe(9_876);
     expect(state.bestTimeMs).toBe(9_876);
+    expect(stepSimulation(state).elapsedMs).toBe(9_876);
 
-    const frozen = stepSimulation(state);
-    expect(frozen.elapsedMs).toBe(9_876);
-
-    const worseAttempt = applyGameEvent(
-      playing({ progress: faithfulPreset.capacity - 1, charge: 2, holding: true, elapsedMs: 14_000, bestTimeMs: 9_876 }),
-      { type: 'release' },
+    state = applyGameEvent(
+      playing({ progress: faithfulPreset.capacity - 1, elapsedMs: 14_000, bestTimeMs: 9_876 }),
+      { type: 'press' },
     );
-    expect(worseAttempt.bestTimeMs).toBe(9_876);
-  });
-
-  it('fails with spew when risk reaches the limit', () => {
-    const state = applyGameEvent(
-      playing({ risk: 159, charge: 1, holding: true }),
-      { type: 'release' },
-    );
-    expect(state.scene).toBe('fail');
-    expect(state.failureReason).toBe('spew');
-  });
-
-  it('uses low risk below the charge boundary and high risk at the boundary', () => {
-    const lowCharge = faithfulPreset.riskChargeBoundary - 0.01;
-    const highCharge = faithfulPreset.riskChargeBoundary;
-    const low = applyGameEvent(playing({ charge: lowCharge, holding: true }), { type: 'release' });
-    const high = applyGameEvent(playing({ charge: highCharge, holding: true }), { type: 'release' });
-    const baseRisk = faithfulPreset.riskBase * (1 + faithfulPreset.riskGrowth);
-
-    expect(low.risk).toBeCloseTo(baseRisk + lowCharge * faithfulPreset.riskChargeLow, 7);
-    expect(high.risk).toBeCloseTo(baseRisk + highCharge * faithfulPreset.riskChargeHigh, 7);
+    expect(state.bestTimeMs).toBe(9_876);
   });
 
   it.each([
     [2, 0],
     [3, 1],
     [4, 2],
-  ])('maps %i settled sips to target speed %i per 40-frame window', (clicks, expected) => {
+  ])('maps %i taps to target speed %i per 40-frame window', (clicks, expected) => {
     const state = stepSimulation(playing({ rateWindowFrame: 39, clicksInWindow: clicks }));
     expect(state.targetSpeedLevel).toBe(expected);
   });
 
-  it('relieves risk faster while idle than while held', () => {
-    const idle = stepSimulation(playing({ risk: 100, holding: false }));
-    const held = stepSimulation(playing({ risk: 100, holding: true }));
-    expect(idle.risk).toBeCloseTo(100 - faithfulPreset.riskReliefIdlePerFrame, 7);
-    expect(held.risk).toBeCloseTo(
-      100 - faithfulPreset.riskReliefIdlePerFrame / faithfulPreset.riskReliefHeldDivisor,
-      7,
-    );
-    expect(idle.risk).toBeLessThan(held.risk);
+  it('gives faster established rhythms a small milk reward and a larger risk cost', () => {
+    const slow = applyGameEvent(playing({ speedLevel: 0 }), { type: 'press' });
+    const fast = applyGameEvent(playing({ speedLevel: 2 }), { type: 'press' });
+    expect(fast.progress).toBeGreaterThan(slow.progress);
+    expect(fast.risk).toBeGreaterThan(slow.risk);
+    expect(fast.progress - slow.progress).toBeCloseTo(faithfulPreset.tapMilkSpeedBonus * 2, 7);
   });
 
-  it.each([
-    [90, 0.20],
-    [91, 0.10],
-    [99, 0.10],
-    [100, 0],
-  ])('applies the correct timing bonus at animation frame %i', (animationFrame, expectedBonus) => {
-    const charge = 10;
-    const efficiency = faithfulPreset.sipEfficiencyBase
-      + faithfulPreset.sipEfficiencyChargeBonus * (charge / faithfulPreset.chargeCap);
-    const state = applyGameEvent(
-      playing({ animationFrame, charge, holding: true }),
-      { type: 'release' },
-    );
-    expect(state.progress).toBeCloseTo(charge * efficiency * (1 + expectedBonus), 7);
+  it('recovers risk faster when danger is already high', () => {
+    expect(getRiskReliefPerFrame(90)).toBeGreaterThan(getRiskReliefPerFrame(20));
+    const state = stepSimulation(playing({ risk: 90 }));
+    expect(state.risk).toBeCloseTo(90 - getRiskReliefPerFrame(90), 7);
   });
 
-  it('prioritizes clear when progress and risk cross limits together', () => {
+  it('keeps the drink pose alive across rapid taps', () => {
+    let state = applyGameEvent(playing(), { type: 'press' });
+    for (let frame = 0; frame < 8; frame += 1) state = stepSimulation(state);
+    expect(state.drinkAnimationFrames).toBeGreaterThan(0);
+    state = applyGameEvent(state, { type: 'press' });
+    expect(state.drinkAnimationFrames).toBe(faithfulPreset.tapDrinkAnimationFrames);
+  });
+
+  it('shows the choke reaction before the fail scene', () => {
+    let state = applyGameEvent(
+      playing({ risk: faithfulPreset.riskLimit - 1, elapsedMs: 8_000 }),
+      { type: 'press' },
+    );
+    expect(state.scene).toBe('choking');
+    expect(state.reactionFramesRemaining).toBe(CHOKE_REACTION_FRAMES);
+    expect(state.elapsedMs).toBe(8_000);
+
+    for (let frame = 1; frame < CHOKE_REACTION_FRAMES; frame += 1) state = stepSimulation(state);
+    expect(state.scene).toBe('choking');
+    state = stepSimulation(state);
+    expect(state.scene).toBe('fail');
+    expect(state.failureReason).toBe('spew');
+  });
+
+  it('prioritizes finishing the bottle when milk and risk cross together', () => {
     const state = applyGameEvent(
-      playing({ progress: faithfulPreset.capacity - 1, risk: faithfulPreset.riskLimit - 1, charge: 2, holding: true }),
-      { type: 'release' },
+      playing({ progress: faithfulPreset.capacity - 1, risk: faithfulPreset.riskLimit - 1 }),
+      { type: 'press' },
     );
     expect(state.scene).toBe('clear');
     expect(state.failureReason).toBeNull();
   });
 
-  it('cancel safely clears a pending hold without settling it', () => {
-    const state = applyGameEvent(
-      playing({ progress: 42, risk: 18, charge: 12, holding: true }),
-      { type: 'cancel' },
-    );
-    expect(state.holding).toBe(false);
-    expect(state.charge).toBe(0);
-    expect(state.progress).toBe(42);
-    expect(state.risk).toBe(18);
-  });
-
-  it('pause freezes elapsed time and clears holding state', () => {
-    const paused = applyGameEvent(
-      playing({ elapsedMs: 1_500, charge: 9, holding: true }),
-      { type: 'pause' },
-    );
+  it('pause freezes elapsed time', () => {
+    const paused = applyGameEvent(playing({ elapsedMs: 1_500 }), { type: 'pause' });
     expect(paused.paused).toBe(true);
-    expect(paused.holding).toBe(false);
-    expect(paused.charge).toBe(0);
     expect(stepSimulation(paused).elapsedMs).toBe(1_500);
   });
 
-  it('punishes reckless gulping before the bottle is finished', () => {
-    const state = playCadence(10, 2);
+  it('punishes reckless tapping before half the bottle is finished', () => {
+    const state = playTapCadence(7);
     expect(state.scene).toBe('fail');
     expect(state.failureReason).toBe('spew');
-    expect(state.progress).toBeLessThan(faithfulPreset.capacity * 0.75);
+    expect(state.progress).toBeLessThan(faithfulPreset.capacity * 0.5);
   });
 
-  it('rewards a fast risk-managed rhythm without making the round instant', () => {
-    const state = playCadence(10, 0, 0.75);
+  it('lets a normal tapping rhythm finish in about 20 seconds', () => {
+    const state = playTapCadence(13);
     expect(state.scene).toBe('clear');
-    expect(state.finalTimeMs).toBeGreaterThan(22_000);
-    expect(state.finalTimeMs).toBeLessThan(35_000);
+    expect(state.finalTimeMs).toBeGreaterThan(17_000);
+    expect(state.finalTimeMs).toBeLessThan(23_000);
+    expect(state.risk).toBeGreaterThan(faithfulPreset.riskLimit * faithfulPreset.warningRatio);
+    expect(state.risk).toBeLessThan(faithfulPreset.riskLimit * faithfulPreset.criticalRatio);
   });
 
-  it('lets a conservative rhythm finish safely within the time limit', () => {
-    const state = playCadence(6, 10);
+  it('lets a relaxed tapping rhythm finish safely in roughly half a minute', () => {
+    const state = playTapCadence(20);
     expect(state.scene).toBe('clear');
-    expect(state.finalTimeMs).toBeGreaterThan(18_000);
-    expect(state.finalTimeMs).toBeLessThan(30_000);
+    expect(state.finalTimeMs).toBeGreaterThan(30_000);
+    expect(state.finalTimeMs).toBeLessThan(40_000);
     expect(state.risk).toBeLessThan(faithfulPreset.riskLimit * faithfulPreset.warningRatio);
+  });
+
+  it('allows an expert to ride high risk without making the round instant', () => {
+    const state = playTapCadence(8, 0.75);
+    expect(state.scene).toBe('clear');
+    expect(state.finalTimeMs).toBeGreaterThan(15_000);
+    expect(state.finalTimeMs).toBeLessThan(22_000);
+    expect(state.risk).toBeGreaterThan(faithfulPreset.riskLimit * 0.70);
+  });
+
+  it('shows elapsed time from zero and caps it at the round limit', () => {
+    expect(getDisplayedElapsedMs(createGameState())).toBe(0);
+    expect(getDisplayedElapsedMs(playing({ elapsedMs: 12_345 }))).toBe(12_345);
+    expect(getDisplayedElapsedMs(playing({ elapsedMs: 75_000 }))).toBe(faithfulPreset.timeLimitMs);
+  });
+
+  it('keeps the bottle percentage bounded and updates it from the same progress value', () => {
+    expect(getMilkRemainingPercent(playing())).toBe(100);
+    const tapped = applyGameEvent(playing({ progress: 110 }), { type: 'press' });
+    const expected = Math.round((1 - tapped.progress / faithfulPreset.capacity) * 100);
+    expect(getMilkRemainingPercent(tapped)).toBe(expected);
+    expect(getMilkRemainingPercent(playing({ progress: faithfulPreset.capacity + 20 }))).toBe(0);
   });
 });

@@ -1,6 +1,7 @@
 import atlasMetadata from '../assets/duck-atlas.json';
 import poseMetadata from '../assets/duck-poses-v2.json';
 import { faithfulPreset } from './config';
+import { getDisplayedElapsedMs, getMilkRemainingPercent, getMilkRemainingRatio } from './metrics';
 import type { GameState } from './model';
 import { formatTime, getReadyCallout } from './scenes';
 
@@ -51,9 +52,11 @@ export function createGameRenderer(canvas: HTMLCanvasElement): GameRenderer {
 
     const warningProgress = Math.max(0, state.risk / faithfulPreset.riskLimit - faithfulPreset.warningRatio);
     const shakeAllowed = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const shakeStrength = state.scene === 'playing' && warningProgress > 0.45 && shakeAllowed
-      ? Math.min(3, warningProgress * 4)
-      : 0;
+    const shakeStrength = shakeAllowed && state.scene === 'choking'
+      ? 4
+      : state.scene === 'playing' && warningProgress > 0.45 && shakeAllowed
+        ? Math.min(3, warningProgress * 4)
+        : 0;
 
     context.save();
     context.translate(stageX, stageY);
@@ -122,11 +125,9 @@ function drawRoom(
 }
 
 function drawHud(ctx: CanvasRenderingContext2D, state: GameState) {
-  const time = state.scene === 'title' || state.scene === 'ready'
-    ? faithfulPreset.timeLimitMs
-    : Math.max(0, faithfulPreset.timeLimitMs - state.elapsedMs);
-  const [whole, decimals] = formatTime(time).padStart(5, '0').split('.');
-  const urgent = time <= 10_000 && state.scene === 'playing';
+  const elapsedTime = getDisplayedElapsedMs(state);
+  const [whole, decimals] = formatTime(elapsedTime).padStart(5, '0').split('.');
+  const urgent = elapsedTime >= faithfulPreset.timeLimitMs - 10_000 && state.scene === 'playing';
   const pulse = urgent ? 1 + Math.sin(state.animationFrame * 0.34) * 0.045 : 1;
 
   ctx.save();
@@ -189,13 +190,14 @@ function drawCharacter(
 ) {
   const band = Math.min(2, Math.floor(state.progress / (faithfulPreset.capacity / 3)));
   const riskRatio = state.risk / faithfulPreset.riskLimit;
+  const isDrinking = state.scene === 'playing' && state.drinkAnimationFrames > 0;
   const frame: FrameName = state.scene === 'title' || state.scene === 'ready'
     ? 'duck_ready'
     : state.scene === 'clear'
       ? 'duck_success'
       : state.scene === 'fail' && state.failureReason === 'spew'
         ? (`band${band}_spew` as FrameName)
-        : state.holding
+        : isDrinking
           ? (`band${band}_drink` as FrameName)
           : (`band${band}_idle` as FrameName);
 
@@ -207,9 +209,9 @@ function drawCharacter(
         ? 'spew'
         : riskRatio >= faithfulPreset.criticalRatio
           ? 'nearChoke'
-          : state.holding && state.speedLevel >= 2
+          : isDrinking && state.speedLevel >= 2
             ? 'fastDrink'
-            : state.holding
+            : isDrinking
               ? 'drink'
               : 'ready';
     const target = pose === 'fastDrink'
@@ -220,7 +222,7 @@ function drawCharacter(
           ? { x: 117, y: 77 + bob, w: 174, h: 182 }
           : { x: 129, y: 70 + bob, w: 155, h: 190 };
     ctx.save();
-    if (state.holding && state.speedLevel >= 2) ctx.rotate(Math.sin(state.animationFrame * 0.42) * 0.008);
+    if (isDrinking && state.speedLevel >= 2) ctx.rotate(Math.sin(state.animationFrame * 0.42) * 0.008);
     drawPoseFrame(ctx, poses, pose, target.x, target.y, target.w, target.h);
     ctx.restore();
     return;
@@ -255,14 +257,14 @@ function drawFallbackDuck(ctx: CanvasRenderingContext2D, state: GameState, bob: 
   ctx.fill();
   ctx.fillStyle = '#f18a32';
   ctx.beginPath();
-  ctx.ellipse(-6, -6, 24, state.holding ? 9 : 6, 0, 0, Math.PI * 2);
+  ctx.ellipse(-6, -6, 24, state.drinkAnimationFrames > 0 ? 9 : 6, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 }
 
 function drawBottle(ctx: CanvasRenderingContext2D, state: GameState) {
-  const totalProgress = Math.min(faithfulPreset.capacity, state.progress + state.charge);
-  const milkRatio = 1 - totalProgress / faithfulPreset.capacity;
+  const milkRatio = getMilkRemainingRatio(state);
+  const milkPercent = getMilkRemainingPercent(state);
   ctx.save();
   ctx.translate(322, 88);
   ctx.shadowColor = '#2b267d55';
@@ -299,25 +301,9 @@ function drawBottle(ctx: CanvasRenderingContext2D, state: GameState) {
   ctx.textAlign = 'center';
   ctx.fillText('MILK', 26, -3);
   ctx.font = '1000 13px ui-rounded, system-ui';
-  drawOutlinedText(ctx, `${Math.round(milkRatio * 100)}%`, 26, 159, '#fff6be', '#30266f', 4);
+  drawOutlinedText(ctx, `${milkPercent}%`, 26, 159, '#fff6be', '#30266f', 4);
   ctx.restore();
 
-  if (state.holding && state.charge > 0) {
-    const chargeRatio = state.charge / faithfulPreset.chargeCap;
-    ctx.fillStyle = '#fff7d9ef';
-    ctx.strokeStyle = '#30266f';
-    ctx.lineWidth = 2.5;
-    roundedRect(ctx, 118, 267, 164, 18, 9);
-    ctx.fill();
-    ctx.stroke();
-    const gradient = ctx.createLinearGradient(124, 0, 276, 0);
-    gradient.addColorStop(0, '#6ec9b2');
-    gradient.addColorStop(0.65, '#f2c753');
-    gradient.addColorStop(1, '#ee7748');
-    ctx.fillStyle = gradient;
-    roundedRect(ctx, 122, 271, 156 * chargeRatio, 10, 5);
-    ctx.fill();
-  }
 }
 
 function drawWarning(
@@ -364,7 +350,7 @@ function drawWarning(
     drawFrame(ctx, atlas, name, x, y, size, size);
   }
 
-  if (ratio >= faithfulPreset.criticalRatio && state.scene === 'playing') {
+  if (ratio >= faithfulPreset.criticalRatio && (state.scene === 'playing' || state.scene === 'choking')) {
     ctx.font = '1000 13px ui-rounded, system-ui';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
@@ -374,7 +360,7 @@ function drawWarning(
 }
 
 function drawDangerVignette(ctx: CanvasRenderingContext2D, state: GameState) {
-  if (state.scene !== 'playing') return;
+  if (state.scene !== 'playing' && state.scene !== 'choking') return;
   const ratio = state.risk / faithfulPreset.riskLimit;
   if (ratio < 0.52) return;
   const intensity = Math.min(1, (ratio - 0.52) / 0.48);
@@ -406,6 +392,19 @@ function drawDangerVignette(ctx: CanvasRenderingContext2D, state: GameState) {
 function drawSceneOverlay(ctx: CanvasRenderingContext2D, state: GameState) {
   if (state.scene === 'playing' && !state.paused) return;
 
+  if (state.scene === 'choking') {
+    const pulse = 1 + Math.sin(state.animationFrame * 0.42) * 0.06;
+    ctx.save();
+    ctx.translate(200, 248);
+    ctx.scale(pulse, pulse);
+    ctx.font = '1000 25px ui-rounded, system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    drawOutlinedText(ctx, '咳、咳！嗆到了！', 0, 0, '#fff56f', '#392675', 7, '#ff4d64', 2.5);
+    ctx.restore();
+    return;
+  }
+
   if (state.scene === 'title') {
     const banner = ctx.createLinearGradient(0, 226, 0, 298);
     banner.addColorStop(0, '#28216ccc');
@@ -421,7 +420,7 @@ function drawSceneOverlay(ctx: CanvasRenderingContext2D, state: GameState) {
     ctx.font = '1000 27px ui-rounded, system-ui';
     drawOutlinedText(ctx, '鴨鴨喝牛奶', 200, 247, '#fff27d', '#2f2376', 7, '#ff7654', 2.5);
     ctx.font = '900 11px ui-rounded, system-ui';
-    drawOutlinedText(ctx, '按住喝一口・放開吞下去', 200, 274, '#ffffff', '#2f2376', 4);
+    drawOutlinedText(ctx, '快速連點・保持節奏別嗆到', 200, 274, '#ffffff', '#2f2376', 4);
     return;
   }
 
@@ -500,7 +499,12 @@ function drawPoseFrame(
   height: number,
 ) {
   const frame = poseMetadata.frames[poseName];
-  ctx.drawImage(image, frame.x, frame.y, frame.w, frame.h, x, y, width, height);
+  const scale = Math.min(width / frame.w, height / frame.h);
+  const renderedWidth = frame.w * scale;
+  const renderedHeight = frame.h * scale;
+  const renderedX = x + (width - renderedWidth) / 2;
+  const renderedY = y + (height - renderedHeight) / 2;
+  ctx.drawImage(image, frame.x, frame.y, frame.w, frame.h, renderedX, renderedY, renderedWidth, renderedHeight);
 }
 
 function drawOutlinedText(

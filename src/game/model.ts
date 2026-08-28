@@ -1,6 +1,6 @@
 import { TOTAL_READY_FRAMES } from './config';
 
-export type GameScene = 'title' | 'ready' | 'playing' | 'clear' | 'fail';
+export type GameScene = 'title' | 'ready' | 'playing' | 'choking' | 'clear' | 'fail';
 export type FailureReason = 'spew' | 'timeout' | null;
 
 export interface GameState {
@@ -21,6 +21,8 @@ export interface GameState {
   clicksInWindow: number;
   downshiftFrames: number;
   readyFramesRemaining: number;
+  reactionFramesRemaining: number;
+  drinkAnimationFrames: number;
 }
 
 export type GameEvent =
@@ -52,6 +54,8 @@ export function createGameState(bestTimeMs: number | null = null): GameState {
     clicksInWindow: 0,
     downshiftFrames: 0,
     readyFramesRemaining: TOTAL_READY_FRAMES,
+    reactionFramesRemaining: 0,
+    drinkAnimationFrames: 0,
   };
 }
 

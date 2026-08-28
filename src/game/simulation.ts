@@ -1,7 +1,6 @@
-import { FIXED_STEP_MS, GO_FRAMES, faithfulPreset } from './config';
+import { CHOKE_REACTION_FRAMES, FIXED_STEP_MS, GO_FRAMES, faithfulPreset } from './config';
+import { getRiskReliefPerFrame, getTapMilkAmount } from './metrics';
 import { createRoundState, type GameEvent, type GameState } from './model';
-
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 function finishClear(next: GameState): GameState {
   const finalTime = Math.min(next.elapsedMs, faithfulPreset.timeLimitMs);
@@ -15,6 +14,8 @@ function finishClear(next: GameState): GameState {
     failureReason: null,
     finalTimeMs: finalTime,
     bestTimeMs: next.bestTimeMs === null ? finalTime : Math.min(next.bestTimeMs, finalTime),
+    reactionFramesRemaining: 0,
+    drinkAnimationFrames: 0,
   };
 }
 
@@ -27,13 +28,28 @@ function finishFail(next: GameState, reason: 'spew' | 'timeout'): GameState {
     paused: false,
     failureReason: reason,
     finalTimeMs: null,
+    reactionFramesRemaining: 0,
+    drinkAnimationFrames: 0,
+  };
+}
+
+function beginChokeReaction(next: GameState): GameState {
+  return {
+    ...next,
+    scene: 'choking',
+    failureReason: 'spew',
+    charge: 0,
+    holding: false,
+    paused: false,
+    reactionFramesRemaining: CHOKE_REACTION_FRAMES,
+    drinkAnimationFrames: 0,
   };
 }
 
 function checkRoundEnd(next: GameState): GameState {
   // Faithful ordering: clearing the bottle wins even if this step also crosses the risk limit.
   if (next.progress >= faithfulPreset.capacity) return finishClear(next);
-  if (next.risk >= faithfulPreset.riskLimit) return finishFail(next, 'spew');
+  if (next.risk >= faithfulPreset.riskLimit) return beginChokeReaction(next);
   if (next.elapsedMs >= faithfulPreset.timeLimitMs) return finishFail(next, 'timeout');
   return next;
 }
@@ -58,38 +74,26 @@ export function applyGameEvent(state: GameState, event: GameEvent): GameState {
   }
 
   if (event.type === 'cancel') {
-    if (!state.holding && state.charge === 0) return state;
-    return { ...state, holding: false, charge: 0 };
+    return state;
   }
 
   if (state.scene !== 'playing' || state.paused) return state;
 
   if (event.type === 'press') {
-    if (state.holding) return state;
-    return { ...state, holding: true, charge: 0 };
+    const tapMilk = getTapMilkAmount(state.speedLevel);
+    const tapRisk = faithfulPreset.tapRiskBase + state.speedLevel * faithfulPreset.tapRiskSpeedBonus;
+    return checkRoundEnd({
+      ...state,
+      holding: false,
+      charge: 0,
+      progress: state.progress + tapMilk,
+      risk: (state.risk + tapRisk) * (1 + faithfulPreset.riskGrowth),
+      clicksInWindow: state.clicksInWindow + 1,
+      drinkAnimationFrames: faithfulPreset.tapDrinkAnimationFrames,
+    });
   }
 
-  if (event.type !== 'release' || !state.holding) return state;
-
-  const riskMultiplier = state.charge < faithfulPreset.riskChargeBoundary
-    ? faithfulPreset.riskChargeLow
-    : faithfulPreset.riskChargeHigh;
-  const nextRisk = (state.risk + faithfulPreset.riskBase) * (1 + faithfulPreset.riskGrowth)
-    + state.charge * riskMultiplier;
-
-  const phase = (state.animationFrame + 20) % faithfulPreset.animationCycleFrames;
-  const timingBonus = phase === 0 ? 0.20 : phase <= 9 ? 0.10 : 0;
-  const sipEfficiency = faithfulPreset.sipEfficiencyBase
-    + faithfulPreset.sipEfficiencyChargeBonus * (state.charge / faithfulPreset.chargeCap);
-
-  return checkRoundEnd({
-    ...state,
-    holding: false,
-    risk: nextRisk,
-    progress: state.progress + state.charge * sipEfficiency * (1 + timingBonus),
-    charge: 0,
-    clicksInWindow: state.clicksInWindow + 1,
-  });
+  return state;
 }
 
 function updateSpeed(next: GameState): GameState {
@@ -130,6 +134,18 @@ function updateSpeed(next: GameState): GameState {
 export function stepSimulation(state: GameState): GameState {
   if (state.paused || state.scene === 'title' || state.scene === 'clear' || state.scene === 'fail') return state;
 
+  if (state.scene === 'choking') {
+    const reactionFramesRemaining = state.reactionFramesRemaining - 1;
+    if (reactionFramesRemaining <= 0) {
+      return finishFail({ ...state, reactionFramesRemaining: 0 }, 'spew');
+    }
+    return {
+      ...state,
+      reactionFramesRemaining,
+      animationFrame: (state.animationFrame + 1) % faithfulPreset.animationCycleFrames,
+    };
+  }
+
   if (state.scene === 'ready') {
     const readyFramesRemaining = state.readyFramesRemaining - 1;
     if (readyFramesRemaining <= 0) {
@@ -139,40 +155,17 @@ export function stepSimulation(state: GameState): GameState {
   }
 
   const animationFrame = (state.animationFrame + 1) % faithfulPreset.animationCycleFrames;
-  let charge = state.charge;
   let risk = state.risk;
-
-  if (state.holding) {
-    const band = clamp(
-      Math.floor(state.progress / (faithfulPreset.capacity / faithfulPreset.progressBands)),
-      0,
-      faithfulPreset.progressBands - 1,
-    );
-    const delta = state.speedLevel - band;
-    let base = faithfulPreset.chargePerFrame;
-    if (delta === -1) base *= 0.15;
-    else if (delta < -1) base *= 0.30;
-
-    let gain = base + faithfulPreset.chargeLevelBonus * faithfulPreset.chargePerFrame * state.speedLevel;
-    if (delta > 0) gain *= faithfulPreset.aheadLevelMultiplier * delta;
-
-    charge = Math.min(
-      charge + gain,
-      faithfulPreset.chargeCap,
-      faithfulPreset.capacity - state.progress,
-    );
-    risk = Math.max(0, risk - faithfulPreset.riskReliefIdlePerFrame / faithfulPreset.riskReliefHeldDivisor);
-  } else {
-    risk -= faithfulPreset.riskReliefIdlePerFrame;
-    if ((animationFrame + 40) % faithfulPreset.animationCycleFrames === 0) risk -= 0.188;
-    risk = Math.max(0, risk);
-  }
+  const riskRelief = getRiskReliefPerFrame(risk);
+  risk -= riskRelief;
+  if ((animationFrame + 40) % faithfulPreset.animationCycleFrames === 0) risk -= 0.188;
+  risk = Math.max(0, risk);
 
   const advanced = updateSpeed({
     ...state,
     animationFrame,
-    charge,
     risk,
+    drinkAnimationFrames: Math.max(0, state.drinkAnimationFrames - 1),
     elapsedMs: state.elapsedMs + FIXED_STEP_MS,
   });
 

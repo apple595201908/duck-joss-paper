@@ -331,6 +331,8 @@ button { font: inherit; }
 .gesture-dot { width: 31px; height: 31px; flex: 0 0 31px; border: 8px solid #ffd18d; border-radius: 50%; background: var(--orange); box-shadow: 0 0 0 2px #db6f3d; animation: tapPulse 1.2s ease-in-out infinite; }
 .play-coach.holding { color: #226957; border-style: solid; border-color: #8cd5c2; background: #dff5ee; }
 .play-coach.holding .gesture-dot { border-color: #9de2cf; background: #45aa90; box-shadow: 0 0 0 2px #267d68; transform: scale(.82); }
+.play-coach.choking { border-style: solid; border-color: #ff496a; color: #8e234b; background: #fff0b2; animation: dangerPanelPulse .32s ease-in-out infinite alternate; }
+.play-coach.choking .gesture-dot { border-color: #ffd95f; background: #ff496a; box-shadow: 0 0 0 2px #8e234b, 0 0 14px #ff496a99; }
 
 .micro-tip { margin: -2px 2px 0; color: #7f6e64; font-size: 10px; font-weight: 750; line-height: 1.45; text-align: center; }
 

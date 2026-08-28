@@ -10,13 +10,14 @@ export function canStartFromScene(state: GameState): boolean {
 }
 
 export function sceneStatusText(state: GameState): string {
-  if (state.scene === 'title') return '準備開始 60 秒節奏挑戰';
+  if (state.scene === 'title') return '準備開始 20 秒連點挑戰';
   if (state.scene === 'ready') return getReadyCallout(state);
+  if (state.scene === 'choking') return '鴨鴨嗆到了';
   if (state.scene === 'clear') return `完成，成績 ${formatTime(state.finalTimeMs ?? 0)}`;
   if (state.scene === 'fail') return state.failureReason === 'timeout' ? '時間到，再試一次' : '喝太急嗆到了，再試一次';
   if (state.paused) return '遊戲已暫停';
-  if (state.holding) return '正在累積這一口';
-  return '放開時才會吞下這一口';
+  if (state.drinkAnimationFrames > 0) return '鴨鴨正在連續喝牛奶';
+  return '連點遊戲畫面讓鴨鴨喝牛奶';
 }
 
 export function formatTime(milliseconds: number): string {

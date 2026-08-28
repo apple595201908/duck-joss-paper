@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { GameAudio } from '../game/audio';
 import { FIXED_STEP_MS, GO_FRAMES, MAX_CATCH_UP_STEPS, faithfulPreset } from '../game/config';
 import { bindGameInput } from '../game/input';
+import { getMilkRemainingPercent, getMilkRemainingRatio } from '../game/metrics';
 import { createGameState, type GameEvent, type GameState } from '../game/model';
 import { createGameRenderer } from '../game/renderer';
 import { applyGameEvent, stepSimulation } from '../game/simulation';
@@ -49,7 +50,7 @@ export default function DuckMilkGame() {
       audio.stopBgm();
       audio.playClear();
     }
-    if (previous.scene === 'playing' && next.scene === 'fail') {
+    if (previous.scene === 'playing' && (next.scene === 'choking' || next.scene === 'fail')) {
       audio.stopBgm();
       audio.playFail();
     }
@@ -63,7 +64,7 @@ export default function DuckMilkGame() {
     if (event.type === 'start' || event.type === 'retry') {
       void audioRef.current?.unlock().then(() => audioRef.current?.playReady());
     }
-    if (event.type === 'release' && previous.scene === 'playing' && previous.holding) {
+    if (event.type === 'press' && previous.scene === 'playing') {
       audioRef.current?.playSwallow();
     }
     if (event.type === 'togglePause' || event.type === 'pause' || event.type === 'resume') {
@@ -165,9 +166,9 @@ export default function DuckMilkGame() {
     else if (snapshot.paused) dispatch({ type: 'resume' });
   };
 
-  const progressRatio = Math.min(1, (snapshot.progress + snapshot.charge) / faithfulPreset.capacity);
   const riskRatio = Math.min(1, snapshot.risk / faithfulPreset.riskLimit);
-  const milkRemainingRatio = 1 - progressRatio;
+  const milkRemainingRatio = getMilkRemainingRatio(snapshot);
+  const milkRemainingPercent = getMilkRemainingPercent(snapshot);
   const dangerClass = riskRatio >= faithfulPreset.criticalRatio ? 'critical' : riskRatio >= faithfulPreset.warningRatio ? 'warning' : 'quiet';
   const showPrimary = snapshot.scene === 'title' || snapshot.scene === 'clear' || snapshot.scene === 'fail' || snapshot.paused;
 
@@ -175,11 +176,11 @@ export default function DuckMilkGame() {
     <main className="game-shell">
       <section className="game-card" aria-label="鴨鴨喝牛奶遊戲">
         <header className="game-header">
-          <div className="title-lockup" aria-label="鴨鴨喝牛奶，60 秒節奏挑戰">
+          <div className="title-lockup" aria-label="鴨鴨喝牛奶，20 秒連點挑戰">
             <span className="logo-duck" aria-hidden="true">●</span>
             <div>
               <strong>鴨鴨喝牛奶</strong>
-              <span>60 秒節奏挑戰</span>
+              <span>20 秒連點挑戰</span>
             </div>
           </div>
 
@@ -210,7 +211,7 @@ export default function DuckMilkGame() {
             height={300}
             role="button"
             tabIndex={0}
-            aria-label="遊戲畫面。遊戲中按住累積一口，放開吞下；電腦可使用空白鍵。"
+            aria-label="遊戲畫面。遊戲中快速連點讓鴨鴨喝牛奶；電腦可連按空白鍵。"
           />
           <div className="screen-gloss" aria-hidden="true" />
         </div>
@@ -219,9 +220,9 @@ export default function DuckMilkGame() {
           <div className="meter-group">
             <div className="meter-label">
               <span>牛奶剩餘</span>
-              <strong>{Math.round(milkRemainingRatio * 100)}%</strong>
+              <strong>{milkRemainingPercent}%</strong>
             </div>
-            <div className="meter-track milk-track" role="progressbar" aria-label="牛奶剩餘量" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(milkRemainingRatio * 100)}>
+            <div className="meter-track milk-track" role="progressbar" aria-label="牛奶剩餘量" aria-valuemin={0} aria-valuemax={100} aria-valuenow={milkRemainingPercent}>
               <span style={{ width: `${milkRemainingRatio * 100}%` }} />
             </div>
           </div>
@@ -241,17 +242,25 @@ export default function DuckMilkGame() {
               <strong>{snapshot.scene === 'title' ? '開始遊戲' : snapshot.paused ? '繼續遊戲' : '再喝一瓶'}</strong>
               <span>{snapshot.scene === 'title' ? '點一下，準備 READY / GO' : '調整節奏，再挑戰最佳時間'}</span>
             </button>
-          ) : (
-            <div className={`play-coach ${snapshot.holding ? 'holding' : ''}`} aria-hidden="true">
+          ) : snapshot.scene === 'choking' ? (
+            <div className="play-coach choking" aria-hidden="true">
               <span className="gesture-dot" />
               <div>
-                <strong>{snapshot.holding ? '放開，吞下去！' : '按住遊戲畫面'}</strong>
-                <span>{snapshot.holding ? '這一口已經在累積' : '短按較安全，連續吞會變快'}</span>
+                <strong>鴨鴨嗆到了！</strong>
+                <span>先看看鴨鴨的反應，再調整下一次節奏</span>
+              </div>
+            </div>
+          ) : (
+            <div className={`play-coach ${snapshot.drinkAnimationFrames > 0 ? 'holding' : ''}`} aria-hidden="true">
+              <span className="gesture-dot" />
+              <div>
+                <strong>{snapshot.drinkAnimationFrames > 0 ? '繼續連點喝奶！' : '連點遊戲畫面'}</strong>
+                <span>{snapshot.drinkAnimationFrames > 0 ? '保持節奏，注意嗆到危險值' : '點得越快、喝得越快，也越容易嗆到'}</span>
               </div>
             </div>
           )}
 
-          <p className="micro-tip">危險爆星出現時，停一拍就會慢慢退下</p>
+          <p className="micro-tip">危險爆星出現時先停手，等嗆到值退下再繼續連點</p>
         </aside>
 
         <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">{sceneStatusText(snapshot)}</p>
