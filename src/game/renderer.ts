@@ -149,37 +149,6 @@ function drawHud(ctx: CanvasRenderingContext2D, state: GameState) {
   ctx.font = '1000 12px ui-rounded, system-ui';
   drawOutlinedText(ctx, 'SEC', 78, 10, '#ffcb48', '#2b267d', 4, '#fffceb', 1.5);
   ctx.restore();
-
-  ctx.fillStyle = '#30266f';
-  ctx.font = '1000 9px ui-rounded, system-ui';
-  ctx.textAlign = 'left';
-  ctx.fillText('節奏速度', 18, 176);
-  const speedColors = ['#d7d8ee', '#65e0be', '#ffb52f'];
-  for (let i = 0; i < 3; i += 1) {
-    ctx.fillStyle = i <= state.speedLevel ? speedColors[state.speedLevel] : '#ffffff80';
-    ctx.strokeStyle = '#30266f';
-    ctx.lineWidth = 2;
-    roundedRect(ctx, 18 + i * 20, 184 - i * 4, 15, 13 + i * 4, 5);
-    ctx.fill();
-    ctx.stroke();
-  }
-
-  const riskRatio = Math.min(1, state.risk / faithfulPreset.riskLimit);
-  if (riskRatio >= faithfulPreset.warningRatio) {
-    ctx.fillStyle = '#fff8dff2';
-    ctx.strokeStyle = '#30266f';
-    ctx.lineWidth = 2;
-    roundedRect(ctx, 15, 215, 90, 15, 8);
-    ctx.fill();
-    ctx.stroke();
-    const riskGradient = ctx.createLinearGradient(18, 0, 101, 0);
-    riskGradient.addColorStop(0, '#f3c94d');
-    riskGradient.addColorStop(0.62, '#f28a3d');
-    riskGradient.addColorStop(1, '#da3e39');
-    ctx.fillStyle = riskGradient;
-    roundedRect(ctx, 19, 219, 82 * riskRatio, 7, 4);
-    ctx.fill();
-  }
 }
 
 function drawCharacter(
@@ -315,10 +284,10 @@ function drawWarning(
   const ratio = state.risk / faithfulPreset.riskLimit;
   if (ratio < faithfulPreset.warningRatio || state.scene === 'title') return;
   const normalized = (ratio - faithfulPreset.warningRatio) / (1 - faithfulPreset.warningRatio);
-  const size = 55 + normalized * 55 + Math.sin(state.animationFrame * 0.3) * 4;
+  const size = 72 + normalized * 72 + Math.sin(state.animationFrame * 0.3) * 5;
   const name: FrameName = ratio >= faithfulPreset.criticalRatio ? 'danger_red' : 'warning_yellow';
-  const x = 13 - normalized * 7;
-  const y = 61 - normalized * 8;
+  const x = 6 - normalized * 8;
+  const y = 54 - normalized * 10;
   const centerX = x + size / 2;
   const centerY = y + size / 2;
 
@@ -351,10 +320,10 @@ function drawWarning(
   }
 
   if (ratio >= faithfulPreset.criticalRatio && (state.scene === 'playing' || state.scene === 'choking')) {
-    ctx.font = '1000 13px ui-rounded, system-ui';
+    ctx.font = '1000 17px ui-rounded, system-ui';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    drawOutlinedText(ctx, '快嗆到了！', 14, 252, '#fff56f', '#392675', 5, '#ff4d64', 2);
+    drawOutlinedText(ctx, '快嗆到了！', 10, 252, '#fff56f', '#392675', 6, '#ff4d64', 2.5);
   }
   ctx.restore();
 }

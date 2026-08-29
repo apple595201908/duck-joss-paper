@@ -86,6 +86,14 @@ describe('duck milk tap simulation', () => {
     expect(fast.progress - slow.progress).toBeCloseTo(faithfulPreset.tapMilkSpeedBonus * 2, 7);
   });
 
+  it('rewards skilled taps that stay near the visual danger zone', () => {
+    const safeAmount = getTapMilkAmount(2, faithfulPreset.riskLimit * 0.2);
+    const warningAmount = getTapMilkAmount(2, faithfulPreset.riskLimit * 0.6);
+    const criticalAmount = getTapMilkAmount(2, faithfulPreset.riskLimit * 0.8);
+    expect(warningAmount).toBeGreaterThan(safeAmount);
+    expect(criticalAmount - safeAmount).toBeCloseTo(faithfulPreset.riskMilkMaxBonus, 7);
+  });
+
   it('recovers risk faster when danger is already high', () => {
     expect(getRiskReliefPerFrame(90)).toBeGreaterThan(getRiskReliefPerFrame(20));
     const state = stepSimulation(playing({ risk: 90 }));
@@ -141,8 +149,8 @@ describe('duck milk tap simulation', () => {
   it('lets a normal tapping rhythm finish in about 20 seconds', () => {
     const state = playTapCadence(13);
     expect(state.scene).toBe('clear');
-    expect(state.finalTimeMs).toBeGreaterThan(17_000);
-    expect(state.finalTimeMs).toBeLessThan(23_000);
+    expect(state.finalTimeMs).toBeGreaterThan(19_000);
+    expect(state.finalTimeMs).toBeLessThan(22_000);
     expect(state.risk).toBeGreaterThan(faithfulPreset.riskLimit * faithfulPreset.warningRatio);
     expect(state.risk).toBeLessThan(faithfulPreset.riskLimit * faithfulPreset.criticalRatio);
   });
@@ -159,8 +167,16 @@ describe('duck milk tap simulation', () => {
     const state = playTapCadence(8, 0.75);
     expect(state.scene).toBe('clear');
     expect(state.finalTimeMs).toBeGreaterThan(15_000);
-    expect(state.finalTimeMs).toBeLessThan(22_000);
+    expect(state.finalTimeMs).toBeLessThan(17_000);
     expect(state.risk).toBeGreaterThan(faithfulPreset.riskLimit * 0.70);
+  });
+
+  it('creates a meaningful finish-time gap between expert and novice play', () => {
+    const expert = playTapCadence(8, 0.75);
+    const novice = playTapCadence(20);
+    expect(expert.scene).toBe('clear');
+    expect(novice.scene).toBe('clear');
+    expect((novice.finalTimeMs ?? 0) - (expert.finalTimeMs ?? 0)).toBeGreaterThan(18_000);
   });
 
   it('shows elapsed time from zero and caps it at the round limit', () => {

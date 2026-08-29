@@ -80,7 +80,7 @@ export function applyGameEvent(state: GameState, event: GameEvent): GameState {
   if (state.scene !== 'playing' || state.paused) return state;
 
   if (event.type === 'press') {
-    const tapMilk = getTapMilkAmount(state.speedLevel);
+    const tapMilk = getTapMilkAmount(state.speedLevel, state.risk);
     const tapRisk = faithfulPreset.tapRiskBase + state.speedLevel * faithfulPreset.tapRiskSpeedBonus;
     return checkRoundEnd({
       ...state,

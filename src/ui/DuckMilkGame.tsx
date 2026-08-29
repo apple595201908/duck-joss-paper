@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { GameAudio } from '../game/audio';
 import { FIXED_STEP_MS, GO_FRAMES, MAX_CATCH_UP_STEPS, faithfulPreset } from '../game/config';
 import { bindGameInput } from '../game/input';
-import { getMilkRemainingPercent, getMilkRemainingRatio } from '../game/metrics';
 import { createGameState, type GameEvent, type GameState } from '../game/model';
 import { createGameRenderer } from '../game/renderer';
 import { applyGameEvent, stepSimulation } from '../game/simulation';
@@ -167,8 +166,6 @@ export default function DuckMilkGame() {
   };
 
   const riskRatio = Math.min(1, snapshot.risk / faithfulPreset.riskLimit);
-  const milkRemainingRatio = getMilkRemainingRatio(snapshot);
-  const milkRemainingPercent = getMilkRemainingPercent(snapshot);
   const dangerClass = riskRatio >= faithfulPreset.criticalRatio ? 'critical' : riskRatio >= faithfulPreset.warningRatio ? 'warning' : 'quiet';
   const showPrimary = snapshot.scene === 'title' || snapshot.scene === 'clear' || snapshot.scene === 'fail' || snapshot.paused;
 
@@ -217,26 +214,6 @@ export default function DuckMilkGame() {
         </div>
 
         <aside className="game-panel" aria-label="遊戲狀態與操作">
-          <div className="meter-group">
-            <div className="meter-label">
-              <span>牛奶剩餘</span>
-              <strong>{milkRemainingPercent}%</strong>
-            </div>
-            <div className="meter-track milk-track" role="progressbar" aria-label="牛奶剩餘量" aria-valuemin={0} aria-valuemax={100} aria-valuenow={milkRemainingPercent}>
-              <span style={{ width: `${milkRemainingRatio * 100}%` }} />
-            </div>
-          </div>
-
-          <div className={`meter-group risk-meter ${dangerClass}`}>
-            <div className="meter-label">
-              <span>{riskRatio < faithfulPreset.warningRatio ? '呼吸很順' : riskRatio >= faithfulPreset.criticalRatio ? '危險！先休息' : '有點急囉'}</span>
-              <strong>{riskRatio < faithfulPreset.warningRatio ? 'OK' : `${Math.round(riskRatio * 100)}%`}</strong>
-            </div>
-            <div className="meter-track danger-track" role="progressbar" aria-label="噴奶危險值" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(riskRatio * 100)}>
-              <span style={{ width: `${riskRatio * 100}%` }} />
-            </div>
-          </div>
-
           {showPrimary ? (
             <button className="primary-button" type="button" onClick={primaryAction}>
               <strong>{snapshot.scene === 'title' ? '開始遊戲' : snapshot.paused ? '繼續遊戲' : '再喝一瓶'}</strong>
@@ -255,12 +232,12 @@ export default function DuckMilkGame() {
               <span className="gesture-dot" />
               <div>
                 <strong>{snapshot.drinkAnimationFrames > 0 ? '繼續連點喝奶！' : '連點遊戲畫面'}</strong>
-                <span>{snapshot.drinkAnimationFrames > 0 ? '保持節奏，注意嗆到危險值' : '點得越快、喝得越快，也越容易嗆到'}</span>
+                <span>{snapshot.drinkAnimationFrames > 0 ? '盯著左側爆星，抓準停手時機' : '點得越快、喝得越快，也越容易嗆到'}</span>
               </div>
             </div>
           )}
 
-          <p className="micro-tip">危險爆星出現時先停手，等嗆到值退下再繼續連點</p>
+          <p className="micro-tip">貼近紅色警戒能喝得更快；太貪心就會嗆到</p>
         </aside>
 
         <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">{sceneStatusText(snapshot)}</p>

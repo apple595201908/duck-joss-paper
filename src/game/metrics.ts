@@ -8,8 +8,17 @@ export function getDisplayedElapsedMs(state: GameState): number {
   return clamp(state.elapsedMs, 0, faithfulPreset.timeLimitMs);
 }
 
-export function getTapMilkAmount(speedLevel: GameState['speedLevel']): number {
-  return faithfulPreset.tapMilkBase + speedLevel * faithfulPreset.tapMilkSpeedBonus;
+export function getTapMilkAmount(speedLevel: GameState['speedLevel'], risk = 0): number {
+  const riskRatio = clamp(risk / faithfulPreset.riskLimit, 0, 1);
+  const riskBonusProgress = clamp(
+    (riskRatio - faithfulPreset.riskMilkBonusStartRatio)
+      / (faithfulPreset.riskMilkBonusFullRatio - faithfulPreset.riskMilkBonusStartRatio),
+    0,
+    1,
+  );
+  return faithfulPreset.tapMilkBase
+    + speedLevel * faithfulPreset.tapMilkSpeedBonus
+    + riskBonusProgress * faithfulPreset.riskMilkMaxBonus;
 }
 
 export function getMilkConsumed(state: GameState): number {
