@@ -6,6 +6,8 @@
 
 [立即線上遊玩](https://duck-milk-rhythm.yoyo50582.chatgpt.site) · [GitHub Repository](https://github.com/apple595201908/duck-milk-rhythm)
 
+[![授權：MIT](https://img.shields.io/badge/授權-MIT-65e2c0.svg)](LICENSE)
+
 ![鴨鴨喝牛奶遊戲預覽](public/og.png)
 
 ---
@@ -867,9 +869,9 @@ Improve near-choke animation
 
 ## 授權
 
-此 repository 目前尚未附加開源授權檔案。除非專案擁有者另行提供授權，原始碼與美術素材不應被視為可自由重製、散布或商用。
+本專案採用 [MIT License](LICENSE) 授權，著作權所有 © 2026 `apple595201908`。
 
-若未來希望開放他人使用，請先新增明確的 `LICENSE`，並分別確認程式碼、美術與品牌名稱適用的授權範圍。
+你可以自由使用、複製、修改、合併、出版、散布、再授權及銷售本軟體，但必須在軟體的所有副本或重要部分中保留原始著作權聲明與 MIT 授權聲明。本軟體依「現狀」提供，不附帶任何明示或默示擔保；完整法律條文請參閱 [`LICENSE`](LICENSE)。
 
 ---
 
