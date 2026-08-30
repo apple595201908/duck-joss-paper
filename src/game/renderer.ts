@@ -153,51 +153,158 @@ function drawHud(ctx: CanvasRenderingContext2D, state: GameState) {
   const pulse = urgent ? 1 + Math.sin(state.animationFrame * 0.34) * 0.045 : 1;
 
   ctx.save();
-  ctx.translate(200, 23);
+  ctx.translate(200, 28);
   ctx.scale(pulse, pulse);
-
   ctx.shadowColor = urgent ? '#ff273dcc' : '#68172e99';
   ctx.shadowBlur = urgent ? 13 : 8;
-  const plaque = ctx.createLinearGradient(0, -22, 0, 24);
-  plaque.addColorStop(0, '#fff4bd');
-  plaque.addColorStop(0.48, '#ffd971');
-  plaque.addColorStop(1, '#f3ae3f');
+  const plaque = ctx.createLinearGradient(0, -27, 0, 28);
+  plaque.addColorStop(0, '#9d2037');
+  plaque.addColorStop(0.46, '#6e132b');
+  plaque.addColorStop(1, '#491022');
   ctx.fillStyle = plaque;
-  ctx.strokeStyle = '#8b1730';
-  ctx.lineWidth = 5;
-  roundedRect(ctx, -108, -22, 216, 47, 14);
+  ctx.strokeStyle = '#ffd564';
+  ctx.lineWidth = 4;
+  roundedRect(ctx, -118, -27, 236, 55, 13);
   ctx.fill();
   ctx.stroke();
   ctx.shadowBlur = 0;
-  ctx.strokeStyle = '#ffe884';
-  ctx.lineWidth = 2;
-  roundedRect(ctx, -103, -17, 206, 37, 10);
+
+  ctx.fillStyle = '#170d13';
+  ctx.strokeStyle = '#f0a839';
+  ctx.lineWidth = 2.5;
+  roundedRect(ctx, -96, -21, 181, 43, 8);
+  ctx.fill();
   ctx.stroke();
 
-  for (const [x, label] of [[-95, '中'], [95, '元']] as const) {
-    ctx.save();
-    ctx.translate(x, 1);
-    ctx.rotate(Math.PI / 4);
-    ctx.fillStyle = '#a51f35';
-    ctx.strokeStyle = '#ffe173';
-    ctx.lineWidth = 1.5;
-    roundedRect(ctx, -8, -8, 16, 16, 3);
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
-    ctx.font = '1000 10px ui-rounded, system-ui';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    drawOutlinedText(ctx, label, x, 1, '#ffe887', '#681128', 2.5);
+  for (const x of [-108, 108]) {
+    for (const y of [-16, 17]) {
+      ctx.fillStyle = '#ffe27a';
+      ctx.beginPath();
+      ctx.arc(x, y, 2.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
+  drawSevenSegmentTimer(ctx, `${whole}.${decimals}`, -67, -18, urgent);
+  ctx.font = '1000 14px ui-rounded, system-ui';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = '1000 45px ui-rounded, system-ui';
-  drawOutlinedText(ctx, `${whole}.${decimals}`, -5, 5, urgent ? '#ff173b' : '#e8253f', '#681128', 8, '#ffe27a', 2.5);
-  ctx.font = '1000 13px ui-rounded, system-ui';
-  drawOutlinedText(ctx, '秒', 79, 10, '#b51d37', '#fff0a2', 4, '#681128', 1.4);
+  drawOutlinedText(ctx, '秒', 101, 5, '#ffe47d', '#621228', 4, '#fff5ba', 1.2);
   ctx.restore();
+}
+
+const SEVEN_SEGMENT_DIGITS: Readonly<Record<string, readonly number[]>> = {
+  '0': [0, 1, 2, 3, 4, 5],
+  '1': [1, 2],
+  '2': [0, 1, 6, 4, 3],
+  '3': [0, 1, 6, 2, 3],
+  '4': [5, 6, 1, 2],
+  '5': [0, 5, 6, 2, 3],
+  '6': [0, 5, 6, 4, 2, 3],
+  '7': [0, 1, 2],
+  '8': [0, 1, 2, 3, 4, 5, 6],
+  '9': [0, 1, 2, 3, 5, 6],
+};
+
+function drawSevenSegmentTimer(
+  ctx: CanvasRenderingContext2D,
+  value: string,
+  x: number,
+  y: number,
+  urgent: boolean,
+) {
+  const digitWidth = 22;
+  const digitHeight = 36;
+  const thickness = 4.6;
+  let cursor = x;
+
+  for (const character of value) {
+    if (character === '.') {
+      ctx.save();
+      ctx.shadowColor = '#ff2147';
+      ctx.shadowBlur = urgent ? 11 : 7;
+      ctx.fillStyle = urgent ? '#ff143c' : '#ed2946';
+      ctx.beginPath();
+      ctx.arc(cursor + 3.4, y + digitHeight - 2.8, 3.1, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      cursor += 10;
+      continue;
+    }
+
+    const activeSegments = new Set(SEVEN_SEGMENT_DIGITS[character] ?? []);
+    for (let segment = 0; segment < 7; segment += 1) {
+      const active = activeSegments.has(segment);
+      ctx.save();
+      ctx.fillStyle = active
+        ? urgent ? '#ff143c' : '#ed2946'
+        : 'rgba(103, 25, 42, 0.24)';
+      if (active) {
+        ctx.shadowColor = '#ff1c43';
+        ctx.shadowBlur = urgent ? 12 : 7;
+      }
+      drawSevenSegment(ctx, cursor, y, digitWidth, digitHeight, thickness, segment);
+      ctx.restore();
+    }
+    cursor += digitWidth + 5;
+  }
+}
+
+function drawSevenSegment(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  thickness: number,
+  segment: number,
+) {
+  const halfHeight = height / 2;
+  if (segment === 0) drawHorizontalLed(ctx, x + thickness * 0.6, y, width - thickness * 1.2, thickness);
+  else if (segment === 1) drawVerticalLed(ctx, x + width - thickness, y + thickness * 0.55, halfHeight - thickness * 0.8, thickness);
+  else if (segment === 2) drawVerticalLed(ctx, x + width - thickness, y + halfHeight + thickness * 0.18, halfHeight - thickness * 0.75, thickness);
+  else if (segment === 3) drawHorizontalLed(ctx, x + thickness * 0.6, y + height - thickness, width - thickness * 1.2, thickness);
+  else if (segment === 4) drawVerticalLed(ctx, x, y + halfHeight + thickness * 0.18, halfHeight - thickness * 0.75, thickness);
+  else if (segment === 5) drawVerticalLed(ctx, x, y + thickness * 0.55, halfHeight - thickness * 0.8, thickness);
+  else drawHorizontalLed(ctx, x + thickness * 0.6, y + halfHeight - thickness / 2, width - thickness * 1.2, thickness);
+}
+
+function drawHorizontalLed(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  thickness: number,
+) {
+  const bevel = thickness * 0.48;
+  ctx.beginPath();
+  ctx.moveTo(x + bevel, y);
+  ctx.lineTo(x + width - bevel, y);
+  ctx.lineTo(x + width, y + thickness / 2);
+  ctx.lineTo(x + width - bevel, y + thickness);
+  ctx.lineTo(x + bevel, y + thickness);
+  ctx.lineTo(x, y + thickness / 2);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawVerticalLed(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  height: number,
+  thickness: number,
+) {
+  const bevel = thickness * 0.48;
+  ctx.beginPath();
+  ctx.moveTo(x + thickness / 2, y);
+  ctx.lineTo(x + thickness, y + bevel);
+  ctx.lineTo(x + thickness, y + height - bevel);
+  ctx.lineTo(x + thickness / 2, y + height);
+  ctx.lineTo(x, y + height - bevel);
+  ctx.lineTo(x, y + bevel);
+  ctx.closePath();
+  ctx.fill();
 }
 
 function drawCharacter(
