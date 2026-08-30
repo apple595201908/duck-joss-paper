@@ -153,18 +153,18 @@ function drawHud(ctx: CanvasRenderingContext2D, state: GameState) {
   const pulse = urgent ? 1 + Math.sin(state.animationFrame * 0.34) * 0.045 : 1;
 
   ctx.save();
-  ctx.translate(200, 28);
+  ctx.translate(200, 22);
   ctx.scale(pulse, pulse);
-  ctx.shadowColor = urgent ? '#ff273dcc' : '#68172e99';
+  ctx.shadowColor = urgent ? '#ff392dcc' : '#8a4b1f88';
   ctx.shadowBlur = urgent ? 13 : 8;
-  const plaque = ctx.createLinearGradient(0, -27, 0, 28);
-  plaque.addColorStop(0, '#9d2037');
-  plaque.addColorStop(0.46, '#6e132b');
-  plaque.addColorStop(1, '#491022');
+  const plaque = ctx.createLinearGradient(0, -20, 0, 28);
+  plaque.addColorStop(0, '#fff5c7');
+  plaque.addColorStop(0.48, '#ffdc7b');
+  plaque.addColorStop(1, '#efb044');
   ctx.fillStyle = plaque;
-  ctx.strokeStyle = '#ffd564';
+  ctx.strokeStyle = '#cf3b2d';
   ctx.lineWidth = 4;
-  roundedRect(ctx, -118, -27, 236, 55, 13);
+  roundedRect(ctx, -118, -20, 236, 48, 12);
   ctx.fill();
   ctx.stroke();
   ctx.shadowBlur = 0;
@@ -172,12 +172,35 @@ function drawHud(ctx: CanvasRenderingContext2D, state: GameState) {
   ctx.fillStyle = '#170d13';
   ctx.strokeStyle = '#f0a839';
   ctx.lineWidth = 2.5;
-  roundedRect(ctx, -96, -21, 181, 43, 8);
+  roundedRect(ctx, -96, -15, 181, 39, 8);
   ctx.fill();
   ctx.stroke();
 
+  // Symmetrical vermilion corner brackets echo Taiwanese temple plaques
+  // without competing with the seven-segment display.
+  ctx.strokeStyle = '#c93429';
+  ctx.lineWidth = 2.2;
+  ctx.lineCap = 'round';
+  for (const direction of [-1, 1]) {
+    ctx.save();
+    ctx.scale(direction, 1);
+    ctx.beginPath();
+    ctx.moveTo(110, -12);
+    ctx.lineTo(103, -12);
+    ctx.lineTo(103, -17);
+    ctx.lineTo(94, -17);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(110, 17);
+    ctx.lineTo(103, 17);
+    ctx.lineTo(103, 22);
+    ctx.lineTo(94, 22);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   for (const x of [-108, 108]) {
-    for (const y of [-16, 17]) {
+    for (const y of [-10, 14]) {
       ctx.fillStyle = '#ffe27a';
       ctx.beginPath();
       ctx.arc(x, y, 2.4, 0, Math.PI * 2);
@@ -185,11 +208,18 @@ function drawHud(ctx: CanvasRenderingContext2D, state: GameState) {
     }
   }
 
-  drawSevenSegmentTimer(ctx, `${whole}.${decimals}`, -67, -18, urgent);
-  ctx.font = '1000 14px ui-rounded, system-ui';
+  drawSevenSegmentTimer(ctx, `${whole}.${decimals}`, -67, -13, urgent);
+
+  ctx.fillStyle = '#170d13';
+  ctx.strokeStyle = '#d8982d';
+  ctx.lineWidth = 2;
+  roundedRect(ctx, 88, -12, 26, 27, 6);
+  ctx.fill();
+  ctx.stroke();
+  ctx.font = '1000 16px ui-rounded, system-ui';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  drawOutlinedText(ctx, '秒', 101, 5, '#ffe47d', '#621228', 4, '#fff5ba', 1.2);
+  drawOutlinedText(ctx, '秒', 101, 2, '#ff2948', '#3b0b08', 5, '#ffe27a', 1.8);
   ctx.restore();
 }
 
