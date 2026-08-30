@@ -25,10 +25,12 @@ Maintain the Ghost Festival limited-edition game without coupling it back to the
 - The displayed clock counts up from zero and freezes on success.
 - Do not add visible bottom heat, progress, or rhythm meters unless the user explicitly requests them. Players judge danger from the furnace, flames, duck pose, warning color, and text.
 - Keep normal play near 19–22 seconds, relaxed play near 30–40 seconds, expert high-risk play near 14–17 seconds, and reckless tapping as an early flare failure unless the user requests a new balance target.
-- Keep the dedicated paper-supply card visible during play. Its pile and percentage must derive from the same remaining-paper ratio.
+- Keep the dedicated paper-supply card centered along the bottom during play, separated from the left-side flare warning. Its pile and percentage must derive from the same remaining-paper ratio.
 - Keep the furnace visually dominant and the paper-supply card large enough to judge a final sprint at a glance.
 - Preserve the furnace's Taiwanese red cylindrical form, with visibly worn red paint, scorched soot, and restrained rust/corrosion marks.
+- Keep thrown paper on a visible arcing path into the furnace mouth; shrink and rotate it on entry, and preserve furnace-rim occlusion so it reads as going inside the bucket.
 - Depict a flare as sustained tall flames rising from the furnace followed by dense smoke, not an explosion or radial shockwave.
+- Keep the BGM original and synthesized in `src/game/audio.ts`. Do not add third-party recordings or samples without recording their exact license and source. Mute and pause must affect BGM and sound effects together.
 - Treat the final 22% heat range as the narrow red danger zone and preserve its larger high-risk efficiency reward unless the user requests another balance target.
 
 ## Classify the Change
@@ -60,6 +62,7 @@ Keep the illustrated duck's aspect ratio. Do not stretch a sprite to fit an arbi
 - Change state transitions in `src/game/simulation.ts` and types in `src/game/model.ts`.
 - Change Canvas composition in `src/game/renderer.ts`.
 - Change controls, storage, audio coordination, or React UI in `src/ui/DuckJossPaperGame.tsx`.
+- Change synthesized music voices, arrangement, mix, or SFX in `src/game/audio.ts`; keep audio generation independent of the deterministic simulation.
 - Change pointer and keyboard semantics in `src/game/input.ts`.
 - Change full-screen layout in `app/globals.css`.
 - Change metadata and social presentation in `app/layout.tsx` and `public/og.png`.
@@ -76,6 +79,8 @@ npm run typecheck
 npm run lint
 npm run build
 ```
+
+For audio changes, keep `tests/audio.test.ts` passing so generated channels remain finite, stereo, audible, and peak-safe.
 
 For balance changes, ensure the simulation tests still cover:
 

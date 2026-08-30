@@ -13,10 +13,11 @@ import {
 type FurnaceName = keyof typeof furnaceMetadata.frames;
 type PoseName = keyof typeof poseMetadata.frames;
 
-const FURNACE_CENTER_X = 326;
-const FURNACE_CENTER_Y = 169;
-const FURNACE_SIZE = 164;
+const FURNACE_CENTER_X = 331;
+const FURNACE_CENTER_Y = 168;
+const FURNACE_SIZE = 198;
 const FURNACE_MOUTH_Y = 171;
+const FURNACE_PAPER_TARGET_Y = 147;
 
 export interface GameRenderer {
   render: (state: GameState) => void;
@@ -271,64 +272,66 @@ function drawPaperSupply(ctx: CanvasRenderingContext2D, state: GameState) {
   if (state.scene === 'title') return;
   const paperRatio = getPaperRemainingRatio(state);
   const paperPercent = getPaperRemainingPercent(state);
-  const visibleSheets = paperRatio <= 0 ? 0 : Math.max(1, Math.ceil(paperRatio * 16));
-  const stackHeight = 7 + paperRatio * 40;
+  const visibleSheets = paperRatio <= 0 ? 0 : Math.max(1, Math.ceil(paperRatio * 18));
+  const stackHeight = 7 + paperRatio * 32;
   const pulse = state.scene === 'playing' && state.throwAnimationFrames > 0
     ? Math.sin(state.animationFrame * 0.55) * 1.4
     : 0;
 
   ctx.save();
-  ctx.translate(62, 226);
+  // Keep the paper supply centered along the bottom so it never merges with
+  // the left-side flare warning and remains readable during a final sprint.
+  ctx.translate(200, 257);
   ctx.shadowColor = '#24144b88';
   ctx.shadowBlur = 9;
   ctx.fillStyle = '#301451e8';
   ctx.strokeStyle = '#ffd84e';
   ctx.lineWidth = 3;
-  roundedRect(ctx, -58, -60, 116, 122, 19);
+  roundedRect(ctx, -74, -37, 148, 76, 18);
   ctx.fill();
   ctx.stroke();
   ctx.shadowBlur = 0;
 
   ctx.fillStyle = '#8f2638';
-  roundedRect(ctx, -51, -53, 102, 22, 10);
+  roundedRect(ctx, 0, -30, 67, 22, 10);
   ctx.fill();
   ctx.font = '1000 12px ui-rounded, system-ui';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  drawOutlinedText(ctx, '金紙剩餘', 0, -42, '#fff3a1', '#32164f', 3.5);
+  drawOutlinedText(ctx, '金紙剩餘', 33.5, -19, '#fff3a1', '#32164f', 3.5);
 
   ctx.fillStyle = '#762333';
   ctx.strokeStyle = '#f8b73f';
   ctx.lineWidth = 2;
-  roundedRect(ctx, -45, 18, 90, 13, 6);
+  roundedRect(ctx, -68, 20, 63, 10, 5);
   ctx.fill();
   ctx.stroke();
 
   for (let index = 0; index < visibleSheets; index += 1) {
     const distance = visibleSheets <= 1 ? 0 : index / (visibleSheets - 1);
-    const sheetY = 15 - distance * stackHeight + (index === visibleSheets - 1 ? pulse : 0);
-    const sheetWidth = 77 - distance * 5;
+    const sheetY = 17 - distance * stackHeight + (index === visibleSheets - 1 ? pulse : 0);
+    const sheetWidth = 59 - distance * 4;
     ctx.save();
-    ctx.translate(Math.sin(index * 2.19) * 2.2, sheetY);
+    ctx.translate(-36.5 + Math.sin(index * 2.19) * 1.8, sheetY);
     ctx.rotate(Math.sin(index * 4.7) * 0.025);
     ctx.fillStyle = index === visibleSheets - 1 ? '#ffe66b' : '#f7c93e';
     ctx.strokeStyle = '#7c382e';
     ctx.lineWidth = 1.4;
-    roundedRect(ctx, -sheetWidth / 2, -5, sheetWidth, 12, 2);
+    roundedRect(ctx, -sheetWidth / 2, -4.5, sheetWidth, 10, 2);
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = '#ec6238';
-    ctx.fillRect(-9, -3, 18, 8);
+    ctx.fillRect(-8, -2.8, 16, 6.5);
     ctx.restore();
   }
 
   if (visibleSheets === 0) {
     ctx.font = '900 12px ui-rounded, system-ui';
-    drawOutlinedText(ctx, '燒完', 0, -2, '#fff0ad', '#32164f', 3);
+    drawOutlinedText(ctx, '燒完', -36.5, 2, '#fff0ad', '#32164f', 3);
   }
 
-  ctx.font = '1000 24px ui-rounded, system-ui';
-  drawOutlinedText(ctx, `${paperPercent}%`, 0, 49, paperPercent <= 20 ? '#ff8063' : '#fff36a', '#32164f', 6, '#a83b37', 1.5);
+  ctx.font = '1000 27px ui-rounded, system-ui';
+  drawOutlinedText(ctx, `${paperPercent}%`, 34, 13, paperPercent <= 20 ? '#ff8063' : '#fff36a', '#32164f', 6, '#a83b37', 1.5);
   ctx.restore();
 }
 
@@ -338,11 +341,43 @@ function drawFlyingPaper(ctx: CanvasRenderingContext2D, state: GameState) {
   const count = state.speedLevel >= 2 ? 2 : 1;
   for (let index = 0; index < count; index += 1) {
     const phase = (progress + index * 0.42) % 1;
-    const x = 248 + phase * (FURNACE_CENTER_X - 248);
-    const y = 137 - Math.sin(phase * Math.PI) * 27 + index * 5;
+    const startX = 247 - index * 5;
+    const startY = 137 + index * 5;
+    const controlX = 287 + index * 3;
+    const controlY = 94 + index * 7;
+    const remaining = 1 - phase;
+    const x = remaining * remaining * startX
+      + 2 * remaining * phase * controlX
+      + phase * phase * FURNACE_CENTER_X;
+    const y = remaining * remaining * startY
+      + 2 * remaining * phase * controlY
+      + phase * phase * (FURNACE_PAPER_TARGET_Y + index * 3);
+    const intake = Math.max(0, (phase - 0.68) / 0.32);
+    const paperScale = 1 - intake * 0.48;
+
+    for (let trail = 3; trail >= 1; trail -= 1) {
+      const trailPhase = Math.max(0, phase - trail * 0.055);
+      const trailRemaining = 1 - trailPhase;
+      const trailX = trailRemaining * trailRemaining * startX
+        + 2 * trailRemaining * trailPhase * controlX
+        + trailPhase * trailPhase * FURNACE_CENTER_X;
+      const trailY = trailRemaining * trailRemaining * startY
+        + 2 * trailRemaining * trailPhase * controlY
+        + trailPhase * trailPhase * (FURNACE_PAPER_TARGET_Y + index * 3);
+      ctx.save();
+      ctx.globalAlpha = (0.20 - trail * 0.035) * (1 - intake * 0.55);
+      ctx.fillStyle = '#fff38a';
+      ctx.beginPath();
+      ctx.ellipse(trailX, trailY, 8 - trail, 3.5 - trail * 0.4, -0.2 + trailPhase, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
     ctx.save();
     ctx.translate(x, y);
-    ctx.rotate(-0.25 + phase * 0.9 + Math.sin(state.animationFrame * 0.4 + index) * 0.08);
+    ctx.scale(paperScale, paperScale);
+    ctx.globalAlpha = 1 - intake * 0.28;
+    ctx.rotate(-0.25 + phase * 1.48 + Math.sin(state.animationFrame * 0.4 + index) * 0.08);
     ctx.fillStyle = '#ffd84e';
     ctx.strokeStyle = '#352252';
     ctx.lineWidth = 2;
@@ -352,6 +387,28 @@ function drawFlyingPaper(ctx: CanvasRenderingContext2D, state: GameState) {
     ctx.fillStyle = '#f06a35';
     ctx.fillRect(-4, -4, 9, 8);
     ctx.restore();
+
+    if (phase > 0.72) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = Math.sin(intake * Math.PI) * 0.72;
+      const glow = ctx.createRadialGradient(
+        FURNACE_CENTER_X,
+        FURNACE_PAPER_TARGET_Y,
+        1,
+        FURNACE_CENTER_X,
+        FURNACE_PAPER_TARGET_Y,
+        24,
+      );
+      glow.addColorStop(0, '#fff7a8');
+      glow.addColorStop(0.42, '#ffad32aa');
+      glow.addColorStop(1, '#ff5a2400');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(FURNACE_CENTER_X, FURNACE_PAPER_TARGET_Y, 24, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
   }
 }
 
@@ -524,7 +581,7 @@ function drawWarning(
   if (ratio < festivalPreset.warningRatio || state.scene !== 'playing') return;
   const normalized = (ratio - festivalPreset.warningRatio) / (1 - festivalPreset.warningRatio);
   const size = 72 + normalized * 72 + Math.sin(state.animationFrame * 0.3) * 5;
-  const x = 6 - normalized * 8;
+  const x = 4 - normalized * 22;
   const y = 54 - normalized * 10;
   const centerX = x + size / 2;
   const centerY = y + size / 2;
@@ -557,7 +614,7 @@ function drawWarning(
     ctx.font = '1000 19px ui-rounded, system-ui';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    drawOutlinedText(ctx, '快發爐了！', 218, 278, '#fff56f', '#392675', 6, '#ff4d34', 2.5);
+    drawOutlinedText(ctx, '快發爐了！', centerX, centerY + size * 0.58, '#fff56f', '#392675', 6, '#ff4d34', 2.5);
   }
   ctx.restore();
 }
