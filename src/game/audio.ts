@@ -60,6 +60,7 @@ export class GameAudio {
   playGo() { this.play('go', 0.72); }
   playPaperToss() { this.play('paperToss', 0.48); }
   playClear() { this.play('clear', 0.82); }
+  playFlare() { this.play('flare', 0.92); }
   playFail() { this.play('fail', 0.76); }
 
   destroy() {
@@ -88,6 +89,7 @@ export class GameAudio {
     this.buffers.set('go', makeTone(this.context, [523, 784], 0.27, 'square'));
     this.buffers.set('paperToss', makePaperWhoosh(this.context));
     this.buffers.set('clear', makeTone(this.context, [523, 659, 784, 1046], 0.72, 'triangle'));
+    this.buffers.set('flare', makeFurnaceFlare(this.context));
     this.buffers.set('fail', makeTone(this.context, [330, 247, 196], 0.58, 'sawtooth'));
   }
 }
@@ -119,6 +121,28 @@ function makePaperWhoosh(context: AudioContext): AudioBuffer {
     const noise = (seed - Math.floor(seed)) * 2 - 1;
     const flutter = Math.sin(2 * Math.PI * (1_150 - t * 4_100) * t);
     data[i] = (noise * 0.42 + flutter * 0.24) * Math.exp(-t * 31) * 0.46;
+  }
+  return buffer;
+}
+
+function makeFurnaceFlare(context: AudioContext): AudioBuffer {
+  const duration = 2.2;
+  const buffer = context.createBuffer(1, Math.ceil(context.sampleRate * duration), context.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < data.length; i += 1) {
+    const t = i / context.sampleRate;
+    const seed = Math.sin(i * 17.123 + 0.91) * 91_341.732;
+    const noise = (seed - Math.floor(seed)) * 2 - 1;
+    const ignition = t < 0.34 ? Math.sin(Math.PI * t / 0.34) ** 0.45 : 0;
+    const rumble = Math.sin(2 * Math.PI * (62 - t * 11) * t)
+      + 0.48 * Math.sin(2 * Math.PI * 94 * t);
+    const burnEnvelope = Math.max(0, 1 - t / duration) ** 0.52;
+    const crackleGate = Math.max(0, Math.sin(t * 97) * Math.sin(t * 173));
+    data[i] = (
+      ignition * (noise * 0.48 + rumble * 0.34)
+      + burnEnvelope * noise * (0.16 + crackleGate * 0.18)
+      + rumble * burnEnvelope * 0.08
+    ) * 0.48;
   }
   return buffer;
 }

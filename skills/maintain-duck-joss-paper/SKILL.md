@@ -24,7 +24,9 @@ Maintain the Ghost Festival limited-edition game without coupling it back to the
 - Pausing, losing focus, hiding the page, or rotating must not create phantom input.
 - The displayed clock counts up from zero and freezes on success.
 - Do not add visible bottom heat, progress, or rhythm meters unless the user explicitly requests them. Players judge danger from the furnace, flames, duck pose, warning color, and text.
-- Keep normal play near 19–22 seconds, relaxed play near 30–40 seconds, expert play near 15–17 seconds, and reckless tapping as an early flare failure unless the user requests a new balance target.
+- Keep normal play near 19–22 seconds, relaxed play near 30–40 seconds, expert high-risk play near 14–17 seconds, and reckless tapping as an early flare failure unless the user requests a new balance target.
+- Keep the dedicated paper-supply card visible during play. Its pile and percentage must derive from the same remaining-paper ratio.
+- Treat the final 22% heat range as the narrow red danger zone and preserve its larger high-risk efficiency reward unless the user requests another balance target.
 
 ## Classify the Change
 
@@ -77,7 +79,7 @@ For balance changes, ensure the simulation tests still cover:
 - reckless cadence fails before half progress;
 - normal cadence finishes in 19–22 seconds;
 - relaxed cadence finishes in 30–40 seconds;
-- expert high-risk cadence finishes in 15–17 seconds;
+- expert high-risk cadence finishes in 14–17 seconds;
 - novice minus expert time exceeds 18 seconds;
 - percentage calculations stay within 0–100;
 - the flare reaction precedes the fail scene.

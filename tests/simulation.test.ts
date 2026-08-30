@@ -7,6 +7,7 @@ import {
   getPaperThrowAmount,
 } from '../src/game/metrics';
 import { createGameState, type GameState } from '../src/game/model';
+import { getFlareAnimationPhase, getFlareAnimationProgress } from '../src/game/scenes';
 import { applyGameEvent, stepSimulation } from '../src/game/simulation';
 
 function playing(overrides: Partial<GameState> = {}): GameState {
@@ -88,10 +89,12 @@ describe('duck joss-paper tap simulation', () => {
 
   it('rewards skilled taps that stay near the visual danger zone', () => {
     const safeAmount = getPaperThrowAmount(2, festivalPreset.riskLimit * 0.2);
-    const warningAmount = getPaperThrowAmount(2, festivalPreset.riskLimit * 0.6);
-    const criticalAmount = getPaperThrowAmount(2, festivalPreset.riskLimit * 0.8);
+    const warningAmount = getPaperThrowAmount(2, festivalPreset.riskLimit * 0.7);
+    const criticalAmount = getPaperThrowAmount(2, festivalPreset.riskLimit * festivalPreset.riskPaperBonusFullRatio);
     expect(warningAmount).toBeGreaterThan(safeAmount);
     expect(criticalAmount - safeAmount).toBeCloseTo(festivalPreset.riskPaperMaxBonus, 7);
+    expect(festivalPreset.riskPaperMaxBonus).toBeGreaterThan(1);
+    expect(festivalPreset.criticalRatio).toBeGreaterThanOrEqual(0.78);
   });
 
   it('recovers risk faster when danger is already high', () => {
@@ -122,6 +125,15 @@ describe('duck joss-paper tap simulation', () => {
     state = stepSimulation(state);
     expect(state.scene).toBe('fail');
     expect(state.failureReason).toBe('flare');
+  });
+
+  it('keeps a complete multi-stage flare animation before failure', () => {
+    expect(FLARE_REACTION_FRAMES).toBeGreaterThanOrEqual(120);
+    expect(getFlareAnimationProgress(FLARE_REACTION_FRAMES)).toBe(0);
+    expect(getFlareAnimationPhase(FLARE_REACTION_FRAMES)).toBe('ignition');
+    expect(getFlareAnimationPhase(Math.round(FLARE_REACTION_FRAMES * 0.70))).toBe('burst');
+    expect(getFlareAnimationPhase(Math.round(FLARE_REACTION_FRAMES * 0.40))).toBe('inferno');
+    expect(getFlareAnimationPhase(Math.round(FLARE_REACTION_FRAMES * 0.10))).toBe('smoke');
   });
 
   it('prioritizes finishing the paper stack when progress and risk cross together', () => {
@@ -163,16 +175,16 @@ describe('duck joss-paper tap simulation', () => {
     expect(state.risk).toBeLessThan(festivalPreset.riskLimit * festivalPreset.warningRatio);
   });
 
-  it('allows an expert to ride high risk without making the round instant', () => {
-    const state = playTapCadence(8, 0.75);
+  it('allows an expert to ride the narrower danger zone for a larger reward', () => {
+    const state = playTapCadence(8, 0.82);
     expect(state.scene).toBe('clear');
-    expect(state.finalTimeMs).toBeGreaterThan(15_000);
+    expect(state.finalTimeMs).toBeGreaterThan(14_000);
     expect(state.finalTimeMs).toBeLessThan(17_000);
-    expect(state.risk).toBeGreaterThan(festivalPreset.riskLimit * 0.70);
+    expect(state.risk).toBeGreaterThan(festivalPreset.riskLimit * festivalPreset.criticalRatio);
   });
 
   it('creates a meaningful finish-time gap between expert and novice play', () => {
-    const expert = playTapCadence(8, 0.75);
+    const expert = playTapCadence(8, 0.82);
     const novice = playTapCadence(20);
     expect(expert.scene).toBe('clear');
     expect(novice.scene).toBe('clear');

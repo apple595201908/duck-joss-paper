@@ -49,7 +49,11 @@ export default function DuckJossPaperGame() {
       audio.stopBgm();
       audio.playClear();
     }
-    if (previous.scene === 'playing' && (next.scene === 'flaring' || next.scene === 'fail')) {
+    if (previous.scene === 'playing' && next.scene === 'flaring') {
+      audio.stopBgm();
+      audio.playFlare();
+    }
+    if (previous.scene === 'playing' && next.scene === 'fail') {
       audio.stopBgm();
       audio.playFail();
     }
