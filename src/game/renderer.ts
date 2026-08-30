@@ -153,23 +153,50 @@ function drawHud(ctx: CanvasRenderingContext2D, state: GameState) {
   const pulse = urgent ? 1 + Math.sin(state.animationFrame * 0.34) * 0.045 : 1;
 
   ctx.save();
-  ctx.translate(200, 27);
+  ctx.translate(200, 23);
   ctx.scale(pulse, pulse);
-  ctx.fillStyle = '#fff8cced';
-  ctx.strokeStyle = '#ffaf38';
-  ctx.lineWidth = 2;
-  roundedRect(ctx, -102, -27, 204, 54, 24);
+
+  ctx.shadowColor = urgent ? '#ff273dcc' : '#68172e99';
+  ctx.shadowBlur = urgent ? 13 : 8;
+  const plaque = ctx.createLinearGradient(0, -22, 0, 24);
+  plaque.addColorStop(0, '#fff4bd');
+  plaque.addColorStop(0.48, '#ffd971');
+  plaque.addColorStop(1, '#f3ae3f');
+  ctx.fillStyle = plaque;
+  ctx.strokeStyle = '#8b1730';
+  ctx.lineWidth = 5;
+  roundedRect(ctx, -108, -22, 216, 47, 14);
   ctx.fill();
   ctx.stroke();
-  ctx.shadowColor = urgent ? '#ff3e63aa' : '#24dcf5aa';
-  ctx.shadowBlur = urgent ? 12 : 8;
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = '#ffe884';
+  ctx.lineWidth = 2;
+  roundedRect(ctx, -103, -17, 206, 37, 10);
+  ctx.stroke();
+
+  for (const [x, label] of [[-95, '中'], [95, '元']] as const) {
+    ctx.save();
+    ctx.translate(x, 1);
+    ctx.rotate(Math.PI / 4);
+    ctx.fillStyle = '#a51f35';
+    ctx.strokeStyle = '#ffe173';
+    ctx.lineWidth = 1.5;
+    roundedRect(ctx, -8, -8, 16, 16, 3);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+    ctx.font = '1000 10px ui-rounded, system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    drawOutlinedText(ctx, label, x, 1, '#ffe887', '#681128', 2.5);
+  }
+
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = '1000 42px ui-rounded, system-ui';
-  drawOutlinedText(ctx, `${whole}.${decimals}`, -4, 0, urgent ? '#ff615d' : '#72f4d2', '#2b267d', 7, '#fffceb', 3);
-  ctx.shadowBlur = 0;
-  ctx.font = '1000 12px ui-rounded, system-ui';
-  drawOutlinedText(ctx, 'SEC', 78, 10, '#ffcb48', '#2b267d', 4, '#fffceb', 1.5);
+  ctx.font = '1000 45px ui-rounded, system-ui';
+  drawOutlinedText(ctx, `${whole}.${decimals}`, -5, 5, urgent ? '#ff173b' : '#e8253f', '#681128', 8, '#ffe27a', 2.5);
+  ctx.font = '1000 13px ui-rounded, system-ui';
+  drawOutlinedText(ctx, '秒', 79, 10, '#b51d37', '#fff0a2', 4, '#681128', 1.4);
   ctx.restore();
 }
 
@@ -281,35 +308,35 @@ function drawPaperSupply(ctx: CanvasRenderingContext2D, state: GameState) {
   ctx.save();
   // Keep the paper supply centered along the bottom so it never merges with
   // the left-side flare warning and remains readable during a final sprint.
-  ctx.translate(200, 266);
+  ctx.translate(200, 271);
   ctx.shadowColor = '#24144b88';
   ctx.shadowBlur = 9;
   ctx.fillStyle = '#301451e8';
   ctx.strokeStyle = '#ffd84e';
-  ctx.lineWidth = 3;
-  roundedRect(ctx, -74, -30, 148, 63, 16);
+  ctx.lineWidth = 4;
+  roundedRect(ctx, -86, -27, 172, 55, 15);
   ctx.fill();
   ctx.stroke();
   ctx.shadowBlur = 0;
 
   ctx.fillStyle = '#8f2638';
-  roundedRect(ctx, 0, -25, 67, 20, 10);
+  roundedRect(ctx, 0, -23, 67, 19, 9);
   ctx.fill();
   ctx.font = '1000 12px ui-rounded, system-ui';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  drawOutlinedText(ctx, '金紙剩餘', 33.5, -15, '#fff3a1', '#32164f', 3.5);
+  drawOutlinedText(ctx, '金紙剩餘', 33.5, -13.5, '#fff3a1', '#32164f', 3.5);
 
   ctx.fillStyle = '#762333';
   ctx.strokeStyle = '#f8b73f';
   ctx.lineWidth = 2;
-  roundedRect(ctx, -68, 20, 63, 10, 5);
+  roundedRect(ctx, -68, 16, 63, 9, 4.5);
   ctx.fill();
   ctx.stroke();
 
   for (let index = 0; index < visibleSheets; index += 1) {
     const distance = visibleSheets <= 1 ? 0 : index / (visibleSheets - 1);
-    const sheetY = 17 - distance * stackHeight + (index === visibleSheets - 1 ? pulse : 0);
+    const sheetY = 15 - distance * stackHeight + (index === visibleSheets - 1 ? pulse : 0);
     const sheetWidth = 59 - distance * 4;
     ctx.save();
     ctx.translate(-36.5 + Math.sin(index * 2.19) * 1.8, sheetY);
@@ -331,7 +358,7 @@ function drawPaperSupply(ctx: CanvasRenderingContext2D, state: GameState) {
   }
 
   ctx.font = '1000 27px ui-rounded, system-ui';
-  drawOutlinedText(ctx, `${paperPercent}%`, 34, 13, paperPercent <= 20 ? '#ff8063' : '#fff36a', '#32164f', 6, '#a83b37', 1.5);
+  drawOutlinedText(ctx, `${paperPercent}%`, 34, 11, paperPercent <= 20 ? '#ff8063' : '#fff36a', '#32164f', 6, '#a83b37', 1.5);
   ctx.restore();
 }
 
