@@ -1,14 +1,14 @@
 @import 'tailwindcss';
 
 :root {
-  --ink: #30266f;
-  --muted: #6b5e83;
-  --cream: #fff7d6;
-  --cream-strong: #fffdf0;
-  --orange: #ff814d;
-  --orange-dark: #d43e55;
-  --mint: #65e2c0;
-  --mint-dark: #167c82;
+  --ink: #2f204f;
+  --muted: #765e78;
+  --cream: #fff0bd;
+  --cream-strong: #fff9df;
+  --orange: #ff6a35;
+  --orange-dark: #b82f38;
+  --mint: #67c59d;
+  --mint-dark: #176e62;
 }
 
 * { box-sizing: border-box; }
@@ -19,9 +19,9 @@ body {
   overflow: hidden;
   color: var(--ink);
   background:
-    radial-gradient(circle at 11% 16%, #7ef4d677 0 5.5%, transparent 6%),
-    radial-gradient(circle at 86% 11%, #ffe05c 0 8%, transparent 8.5%),
-    linear-gradient(150deg, #2c2475 0%, #166e96 44%, #58dfbd 100%);
+    radial-gradient(circle at 11% 16%, #ffb62f55 0 5.5%, transparent 6%),
+    radial-gradient(circle at 86% 11%, #e8423655 0 8%, transparent 8.5%),
+    linear-gradient(150deg, #221642 0%, #52244f 44%, #cf5e35 100%);
   font-family: ui-rounded, "Nunito", "Noto Sans TC", system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
@@ -89,7 +89,7 @@ button { font: inherit; }
   gap: 10px;
   padding: 10px clamp(12px, 2.4vw, 26px);
   border-bottom: 3px solid #30266f;
-  background: linear-gradient(90deg, #fffbe7f5, #fff2b8f5 62%, #8cebd9f5);
+  background: linear-gradient(90deg, #fff8d9f5, #ffd980f5 62%, #c65342f5);
   box-shadow: 0 5px 18px #24195c30;
   z-index: 4;
 }
@@ -211,8 +211,8 @@ button { font: inherit; }
   border: 0;
   border-right: 3px solid #30266f;
   border-radius: 0;
-  background: #bfe7da url('/assets/game-background-v2.png') center / cover no-repeat;
-  box-shadow: inset 0 0 0 1px #83e5d1;
+  background: #42213d url('/assets/ghost-festival-background.png') center / cover no-repeat;
+  box-shadow: inset 0 0 0 1px #f0b44c;
   isolation: isolate;
 }
 
@@ -253,8 +253,8 @@ button { font: inherit; }
   padding: clamp(15px, 3vh, 30px) clamp(14px, 2vw, 25px);
   border: 0;
   border-radius: 0;
-  background: linear-gradient(160deg, #fffdf1, #fff1ba);
-  box-shadow: inset 0 2px #fff, 0 6px 0 #65cbb8;
+  background: linear-gradient(160deg, #fff9df, #f7d786);
+  box-shadow: inset 0 2px #fff, 0 6px 0 #a7463c;
 }
 
 .primary-button {
@@ -297,10 +297,10 @@ button { font: inherit; }
 .play-coach strong { font-size: 15px; font-weight: 1000; }
 .play-coach span:not(.gesture-dot) { margin-top: 3px; color: #80685d; font-size: 10px; font-weight: 800; }
 .gesture-dot { width: 31px; height: 31px; flex: 0 0 31px; border: 8px solid #ffd18d; border-radius: 50%; background: var(--orange); box-shadow: 0 0 0 2px #db6f3d; animation: tapPulse 1.2s ease-in-out infinite; }
-.play-coach.holding { color: #226957; border-style: solid; border-color: #8cd5c2; background: #dff5ee; }
-.play-coach.holding .gesture-dot { border-color: #9de2cf; background: #45aa90; box-shadow: 0 0 0 2px #267d68; transform: scale(.82); }
-.play-coach.choking { border-style: solid; border-color: #ff496a; color: #8e234b; background: #fff0b2; animation: dangerPanelPulse .32s ease-in-out infinite alternate; }
-.play-coach.choking .gesture-dot { border-color: #ffd95f; background: #ff496a; box-shadow: 0 0 0 2px #8e234b, 0 0 14px #ff496a99; }
+.play-coach.throwing { color: #6d421d; border-style: solid; border-color: #e6ae45; background: #fff0ba; }
+.play-coach.throwing .gesture-dot { border-color: #ffdb73; background: #e76135; box-shadow: 0 0 0 2px #9f3b32; transform: scale(.82); }
+.play-coach.flaring { border-style: solid; border-color: #ff493d; color: #8e2d28; background: #fff0b2; animation: dangerPanelPulse .32s ease-in-out infinite alternate; }
+.play-coach.flaring .gesture-dot { border-color: #ffd95f; background: #ff493d; box-shadow: 0 0 0 2px #8e2d28, 0 0 14px #ff493d99; }
 
 .micro-tip { margin: -2px 2px 0; color: #7f6e64; font-size: 10px; font-weight: 750; line-height: 1.45; text-align: center; }
 

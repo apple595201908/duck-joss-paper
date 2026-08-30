@@ -1,40 +1,40 @@
-import { faithfulPreset } from './config';
+import { festivalPreset } from './config';
 import type { GameState } from './model';
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 export function getDisplayedElapsedMs(state: GameState): number {
   if (state.scene === 'title' || state.scene === 'ready') return 0;
-  return clamp(state.elapsedMs, 0, faithfulPreset.timeLimitMs);
+  return clamp(state.elapsedMs, 0, festivalPreset.timeLimitMs);
 }
 
-export function getTapMilkAmount(speedLevel: GameState['speedLevel'], risk = 0): number {
-  const riskRatio = clamp(risk / faithfulPreset.riskLimit, 0, 1);
+export function getPaperThrowAmount(speedLevel: GameState['speedLevel'], risk = 0): number {
+  const riskRatio = clamp(risk / festivalPreset.riskLimit, 0, 1);
   const riskBonusProgress = clamp(
-    (riskRatio - faithfulPreset.riskMilkBonusStartRatio)
-      / (faithfulPreset.riskMilkBonusFullRatio - faithfulPreset.riskMilkBonusStartRatio),
+    (riskRatio - festivalPreset.riskPaperBonusStartRatio)
+      / (festivalPreset.riskPaperBonusFullRatio - festivalPreset.riskPaperBonusStartRatio),
     0,
     1,
   );
-  return faithfulPreset.tapMilkBase
-    + speedLevel * faithfulPreset.tapMilkSpeedBonus
-    + riskBonusProgress * faithfulPreset.riskMilkMaxBonus;
+  return festivalPreset.tapPaperBase
+    + speedLevel * festivalPreset.tapPaperSpeedBonus
+    + riskBonusProgress * festivalPreset.riskPaperMaxBonus;
 }
 
-export function getMilkConsumed(state: GameState): number {
-  return clamp(state.progress, 0, faithfulPreset.capacity);
+export function getPaperBurned(state: GameState): number {
+  return clamp(state.progress, 0, festivalPreset.capacity);
 }
 
-export function getMilkRemainingRatio(state: GameState): number {
-  return 1 - getMilkConsumed(state) / faithfulPreset.capacity;
+export function getPaperRemainingRatio(state: GameState): number {
+  return 1 - getPaperBurned(state) / festivalPreset.capacity;
 }
 
-export function getMilkRemainingPercent(state: GameState): number {
-  return Math.round(getMilkRemainingRatio(state) * 100);
+export function getPaperRemainingPercent(state: GameState): number {
+  return Math.round(getPaperRemainingRatio(state) * 100);
 }
 
 export function getRiskReliefPerFrame(risk: number): number {
-  const riskRatio = clamp(risk / faithfulPreset.riskLimit, 0, 1);
-  return faithfulPreset.riskReliefIdleBase
-    + faithfulPreset.riskReliefIdleBonus * Math.pow(riskRatio, faithfulPreset.riskReliefCurvePower);
+  const riskRatio = clamp(risk / festivalPreset.riskLimit, 0, 1);
+  return festivalPreset.riskReliefIdleBase
+    + festivalPreset.riskReliefIdleBonus * Math.pow(riskRatio, festivalPreset.riskReliefCurvePower);
 }

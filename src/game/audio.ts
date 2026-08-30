@@ -58,7 +58,7 @@ export class GameAudio {
 
   playReady() { this.play('ready', 0.65); }
   playGo() { this.play('go', 0.72); }
-  playSwallow() { this.play('swallow', 0.52); }
+  playPaperToss() { this.play('paperToss', 0.48); }
   playClear() { this.play('clear', 0.82); }
   playFail() { this.play('fail', 0.76); }
 
@@ -72,7 +72,7 @@ export class GameAudio {
     if (!this.context || !this.master) return;
     const buffer = this.buffers.get(name);
     if (!buffer) return;
-    // A new source is used for every swallow, so close taps can overlap cleanly.
+    // A new source is used for every toss, so close taps can overlap cleanly.
     const source = this.context.createBufferSource();
     const gain = this.context.createGain();
     source.buffer = buffer;
@@ -86,7 +86,7 @@ export class GameAudio {
     this.buffers.set('bgm', makeMelody(this.context));
     this.buffers.set('ready', makeTone(this.context, [392, 523], 0.34, 'triangle'));
     this.buffers.set('go', makeTone(this.context, [523, 784], 0.27, 'square'));
-    this.buffers.set('swallow', makeGlug(this.context));
+    this.buffers.set('paperToss', makePaperWhoosh(this.context));
     this.buffers.set('clear', makeTone(this.context, [523, 659, 784, 1046], 0.72, 'triangle'));
     this.buffers.set('fail', makeTone(this.context, [330, 247, 196], 0.58, 'sawtooth'));
   }
@@ -109,15 +109,16 @@ function makeTone(context: AudioContext, notes: number[], duration: number, shap
   return buffer;
 }
 
-function makeGlug(context: AudioContext): AudioBuffer {
-  const duration = 0.18;
+function makePaperWhoosh(context: AudioContext): AudioBuffer {
+  const duration = 0.13;
   const buffer = context.createBuffer(1, Math.ceil(context.sampleRate * duration), context.sampleRate);
   const data = buffer.getChannelData(0);
   for (let i = 0; i < data.length; i += 1) {
     const t = i / context.sampleRate;
-    const frequency = 185 - t * 410;
-    const bubble = Math.sin(2 * Math.PI * frequency * t) + 0.42 * Math.sin(2 * Math.PI * frequency * 1.9 * t);
-    data[i] = bubble * Math.exp(-t * 18) * 0.42;
+    const seed = Math.sin(i * 12.9898) * 43_758.5453;
+    const noise = (seed - Math.floor(seed)) * 2 - 1;
+    const flutter = Math.sin(2 * Math.PI * (1_150 - t * 4_100) * t);
+    data[i] = (noise * 0.42 + flutter * 0.24) * Math.exp(-t * 31) * 0.46;
   }
   return buffer;
 }
@@ -126,7 +127,7 @@ function makeMelody(context: AudioContext): AudioBuffer {
   const duration = 3.2;
   const buffer = context.createBuffer(1, Math.ceil(context.sampleRate * duration), context.sampleRate);
   const data = buffer.getChannelData(0);
-  const notes = [261.6, 329.6, 392, 329.6, 293.7, 349.2, 440, 349.2];
+  const notes = [293.7, 392, 440, 392, 329.6, 440, 523.3, 440];
   const noteLength = duration / notes.length;
   for (let i = 0; i < data.length; i += 1) {
     const t = i / context.sampleRate;

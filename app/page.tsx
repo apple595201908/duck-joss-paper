@@ -1,5 +1,5 @@
-import DuckMilkGame from '@/src/ui/DuckMilkGame';
+import DuckJossPaperGame from '@/src/ui/DuckJossPaperGame';
 
 export default function Home() {
-  return <DuckMilkGame />;
+  return <DuckJossPaperGame />;
 }

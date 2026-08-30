@@ -1,0 +1,7 @@
+interface:
+  display_name: "鴨鴨燒紙錢維護"
+  short_description: "安全維護中元普渡限定遊戲的玩法、美術、測試與公開部署"
+  default_prompt: "Use $maintain-duck-joss-paper to safely maintain the independent Ghost Festival game, verify its gameplay invariants, and prepare a tested deployment."
+
+policy:
+  allow_implicit_invocation: true

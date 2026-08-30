@@ -1,11 +1,11 @@
-import atlasMetadata from '../assets/duck-atlas.json';
-import poseMetadata from '../assets/duck-poses-v2.json';
-import { faithfulPreset } from './config';
-import { getDisplayedElapsedMs, getMilkRemainingPercent, getMilkRemainingRatio } from './metrics';
+import furnaceMetadata from '../assets/joss-furnace-states.json';
+import poseMetadata from '../assets/joss-duck-poses.json';
+import { festivalPreset } from './config';
+import { getDisplayedElapsedMs, getPaperRemainingPercent, getPaperRemainingRatio } from './metrics';
 import type { GameState } from './model';
 import { formatTime, getReadyCallout } from './scenes';
 
-type FrameName = keyof typeof atlasMetadata.frames;
+type FurnaceName = keyof typeof furnaceMetadata.frames;
 type PoseName = keyof typeof poseMetadata.frames;
 
 export interface GameRenderer {
@@ -17,18 +17,18 @@ export function createGameRenderer(canvas: HTMLCanvasElement): GameRenderer {
   const context = canvas.getContext('2d', { alpha: false });
   if (!context) throw new Error('Canvas 2D is not supported');
 
-  const atlas = new Image();
   const background = new Image();
   const poses = new Image();
-  let atlasReady = false;
+  const furnace = new Image();
   let backgroundReady = false;
   let posesReady = false;
-  atlas.onload = () => { atlasReady = true; };
+  let furnaceReady = false;
   background.onload = () => { backgroundReady = true; };
   poses.onload = () => { posesReady = true; };
-  atlas.src = atlasMetadata.image;
-  background.src = '/assets/game-background-v2.png';
+  furnace.onload = () => { furnaceReady = true; };
+  background.src = '/assets/ghost-festival-background.png';
   poses.src = poseMetadata.image;
+  furnace.src = furnaceMetadata.image;
 
   const render = (state: GameState) => {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -50,9 +50,9 @@ export function createGameRenderer(canvas: HTMLCanvasElement): GameRenderer {
     const stageX = (viewWidth - 400 * stageScale) / 2;
     const stageY = (viewHeight - 300 * stageScale) / 2;
 
-    const warningProgress = Math.max(0, state.risk / faithfulPreset.riskLimit - faithfulPreset.warningRatio);
+    const warningProgress = Math.max(0, state.risk / festivalPreset.riskLimit - festivalPreset.warningRatio);
     const shakeAllowed = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const shakeStrength = shakeAllowed && state.scene === 'choking'
+    const shakeStrength = shakeAllowed && state.scene === 'flaring'
       ? 4
       : state.scene === 'playing' && warningProgress > 0.45 && shakeAllowed
         ? Math.min(3, warningProgress * 4)
@@ -69,9 +69,10 @@ export function createGameRenderer(canvas: HTMLCanvasElement): GameRenderer {
     }
 
     drawDangerVignette(context, state);
-    drawCharacter(context, state, posesReady ? poses : null, atlasReady ? atlas : null);
-    drawBottle(context, state);
-    drawWarning(context, state, posesReady ? poses : null, atlasReady ? atlas : null);
+    drawCharacter(context, state, posesReady ? poses : null);
+    drawFlyingPaper(context, state);
+    drawFurnace(context, state, furnaceReady ? furnace : null);
+    drawWarning(context, state, furnaceReady ? furnace : null);
     drawHud(context, state);
     drawSceneOverlay(context, state);
     context.restore();
@@ -80,9 +81,9 @@ export function createGameRenderer(canvas: HTMLCanvasElement): GameRenderer {
   return {
     render,
     destroy: () => {
-      atlas.onload = null;
       background.onload = null;
       poses.onload = null;
+      furnace.onload = null;
     },
   };
 }
@@ -127,7 +128,7 @@ function drawRoom(
 function drawHud(ctx: CanvasRenderingContext2D, state: GameState) {
   const elapsedTime = getDisplayedElapsedMs(state);
   const [whole, decimals] = formatTime(elapsedTime).padStart(5, '0').split('.');
-  const urgent = elapsedTime >= faithfulPreset.timeLimitMs - 10_000 && state.scene === 'playing';
+  const urgent = elapsedTime >= festivalPreset.timeLimitMs - 10_000 && state.scene === 'playing';
   const pulse = urgent ? 1 + Math.sin(state.animationFrame * 0.34) * 0.045 : 1;
 
   ctx.save();
@@ -155,50 +156,32 @@ function drawCharacter(
   ctx: CanvasRenderingContext2D,
   state: GameState,
   poses: HTMLImageElement | null,
-  atlas: HTMLImageElement | null,
 ) {
-  const band = Math.min(2, Math.floor(state.progress / (faithfulPreset.capacity / 3)));
-  const riskRatio = state.risk / faithfulPreset.riskLimit;
-  const isDrinking = state.scene === 'playing' && state.drinkAnimationFrames > 0;
-  const frame: FrameName = state.scene === 'title' || state.scene === 'ready'
-    ? 'duck_ready'
-    : state.scene === 'clear'
-      ? 'duck_success'
-      : state.scene === 'fail' && state.failureReason === 'spew'
-        ? (`band${band}_spew` as FrameName)
-        : isDrinking
-          ? (`band${band}_drink` as FrameName)
-          : (`band${band}_idle` as FrameName);
+  const riskRatio = state.risk / festivalPreset.riskLimit;
+  const isThrowing = state.scene === 'playing' && state.throwAnimationFrames > 0;
 
   const bob = state.scene === 'playing' ? Math.sin(state.animationFrame / (9 - state.speedLevel * 2)) * (2 + state.speedLevel) : 0;
   if (poses) {
     const pose: PoseName = state.scene === 'clear'
       ? 'success'
-      : state.scene === 'fail' && state.failureReason === 'spew'
-        ? 'spew'
-        : riskRatio >= faithfulPreset.criticalRatio
-          ? 'nearChoke'
-          : isDrinking && state.speedLevel >= 2
-            ? 'fastDrink'
-            : isDrinking
-              ? 'drink'
+      : state.scene === 'flaring' || (state.scene === 'fail' && state.failureReason === 'flare')
+        ? 'flare'
+        : riskRatio >= festivalPreset.criticalRatio
+          ? 'nearFlare'
+          : isThrowing && state.speedLevel >= 2
+            ? 'fastThrow'
+            : isThrowing
+              ? 'throw'
               : 'ready';
-    const target = pose === 'fastDrink'
-      ? { x: 107, y: 75 + bob, w: 194, h: 177 }
-      : pose === 'spew'
-        ? { x: 76, y: 88 + bob, w: 252, h: 166 }
-        : pose === 'nearChoke'
-          ? { x: 117, y: 77 + bob, w: 174, h: 182 }
-          : { x: 129, y: 70 + bob, w: 155, h: 190 };
+    const target = pose === 'flare'
+      ? { x: 86, y: 58 + bob, w: 220, h: 220 }
+      : pose === 'fastThrow'
+        ? { x: 98, y: 63 + bob, w: 210, h: 210 }
+        : { x: 108, y: 66 + bob, w: 198, h: 198 };
     ctx.save();
-    if (isDrinking && state.speedLevel >= 2) ctx.rotate(Math.sin(state.animationFrame * 0.42) * 0.008);
+    if (isThrowing && state.speedLevel >= 2) ctx.rotate(Math.sin(state.animationFrame * 0.42) * 0.008);
     drawPoseFrame(ctx, poses, pose, target.x, target.y, target.w, target.h);
     ctx.restore();
-    return;
-  }
-
-  if (atlas) {
-    drawFrame(ctx, atlas, frame, 105, 69 + bob, 190, 190);
     return;
   }
 
@@ -226,66 +209,114 @@ function drawFallbackDuck(ctx: CanvasRenderingContext2D, state: GameState, bob: 
   ctx.fill();
   ctx.fillStyle = '#f18a32';
   ctx.beginPath();
-  ctx.ellipse(-6, -6, 24, state.drinkAnimationFrames > 0 ? 9 : 6, 0, 0, Math.PI * 2);
+  ctx.ellipse(-6, -6, 24, state.throwAnimationFrames > 0 ? 9 : 6, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 }
 
-function drawBottle(ctx: CanvasRenderingContext2D, state: GameState) {
-  const milkRatio = getMilkRemainingRatio(state);
-  const milkPercent = getMilkRemainingPercent(state);
+function drawFurnace(ctx: CanvasRenderingContext2D, state: GameState, furnace: HTMLImageElement | null) {
+  const paperRatio = getPaperRemainingRatio(state);
+  const paperPercent = getPaperRemainingPercent(state);
+  const riskRatio = state.risk / festivalPreset.riskLimit;
+  const furnaceState: FurnaceName = state.scene === 'flaring' || (state.scene === 'fail' && state.failureReason === 'flare')
+    ? 'flare'
+    : riskRatio >= festivalPreset.criticalRatio
+      ? 'danger'
+      : riskRatio >= festivalPreset.warningRatio
+        ? 'warm'
+        : 'calm';
+  const pulse = furnaceState === 'danger' || furnaceState === 'flare'
+    ? 1 + Math.sin(state.animationFrame * 0.34) * 0.025
+    : 1;
+
   ctx.save();
-  ctx.translate(322, 88);
-  ctx.shadowColor = '#2b267d55';
-  ctx.shadowBlur = 7;
-  ctx.fillStyle = '#dffaffeb';
-  ctx.strokeStyle = '#30266f';
-  ctx.lineWidth = 5;
-  roundedRect(ctx, -2, 27, 56, 116, 15);
-  ctx.fill();
-  ctx.stroke();
+  ctx.translate(337, 167);
+  ctx.scale(pulse, pulse);
+  ctx.shadowColor = furnaceState === 'flare' ? '#ff4015cc' : '#e39b3877';
+  ctx.shadowBlur = furnaceState === 'flare' ? 18 : 8;
+  if (furnace) drawFurnaceFrame(ctx, furnace, furnaceState, -63, -72, 126, 126);
+  else drawFallbackFurnace(ctx, furnaceState);
   ctx.shadowBlur = 0;
-  ctx.fillStyle = '#55d8d1';
-  ctx.strokeStyle = '#30266f';
-  ctx.lineWidth = 4;
-  roundedRect(ctx, 8, 5, 36, 31, 9);
-  ctx.fill();
-  ctx.stroke();
-  ctx.fillStyle = '#fffef1';
-  const fillHeight = 91 * milkRatio;
-  const fillTop = 134 - fillHeight;
-  roundedRect(ctx, 5, fillTop, 42, fillHeight, 10);
-  ctx.fill();
-  ctx.fillStyle = '#ffffffcf';
-  roundedRect(ctx, 8, fillTop + 4, 5, Math.max(0, fillHeight - 10), 3);
-  ctx.fill();
-  ctx.strokeStyle = '#66cfe0';
+
+  const visibleSheets = Math.max(0, Math.ceil(paperRatio * 7));
+  for (let index = 0; index < visibleSheets; index += 1) {
+    const sheetX = -58 + (index % 2) * 13;
+    const sheetY = 42 - Math.floor(index / 2) * 6;
+    ctx.save();
+    ctx.translate(sheetX, sheetY);
+    ctx.rotate((index % 2 === 0 ? -1 : 1) * 0.08);
+    ctx.fillStyle = '#ffd84e';
+    ctx.strokeStyle = '#352252';
+    ctx.lineWidth = 1.5;
+    roundedRect(ctx, -12, -5, 25, 10, 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#f06a35';
+    ctx.fillRect(-4, -3, 9, 6);
+    ctx.restore();
+  }
+
+  ctx.fillStyle = '#fff3b9f2';
+  ctx.strokeStyle = '#352252';
   ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(7, fillTop + 1 + Math.sin(state.animationFrame * 0.16) * 2);
-  ctx.quadraticCurveTo(26, fillTop - 2, 47, fillTop + 1 - Math.sin(state.animationFrame * 0.16) * 2);
+  roundedRect(ctx, -34, 59, 68, 21, 9);
+  ctx.fill();
   ctx.stroke();
-  ctx.fillStyle = '#30266f';
   ctx.font = '1000 11px ui-rounded, system-ui';
   ctx.textAlign = 'center';
-  ctx.fillText('MILK', 26, -3);
-  ctx.font = '1000 13px ui-rounded, system-ui';
-  drawOutlinedText(ctx, `${milkPercent}%`, 26, 159, '#fff6be', '#30266f', 4);
+  drawOutlinedText(ctx, `金紙 ${paperPercent}%`, 0, 70, '#fff36a', '#352252', 4, '#c24136', 1.4);
   ctx.restore();
+}
 
+function drawFlyingPaper(ctx: CanvasRenderingContext2D, state: GameState) {
+  if (state.scene !== 'playing' || state.throwAnimationFrames <= 0) return;
+  const progress = 1 - state.throwAnimationFrames / festivalPreset.tapThrowAnimationFrames;
+  const count = state.speedLevel >= 2 ? 2 : 1;
+  for (let index = 0; index < count; index += 1) {
+    const phase = (progress + index * 0.42) % 1;
+    const x = 248 + phase * 73;
+    const y = 137 - Math.sin(phase * Math.PI) * 27 + index * 5;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(-0.25 + phase * 0.9 + Math.sin(state.animationFrame * 0.4 + index) * 0.08);
+    ctx.fillStyle = '#ffd84e';
+    ctx.strokeStyle = '#352252';
+    ctx.lineWidth = 2;
+    roundedRect(ctx, -12, -7, 25, 14, 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#f06a35';
+    ctx.fillRect(-4, -4, 9, 8);
+    ctx.restore();
+  }
+}
+
+function drawFallbackFurnace(ctx: CanvasRenderingContext2D, state: FurnaceName) {
+  ctx.fillStyle = '#b93432';
+  ctx.strokeStyle = '#352252';
+  ctx.lineWidth = 4;
+  roundedRect(ctx, -42, -18, 84, 69, 20);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = state === 'calm' ? '#ffb52f' : state === 'warm' ? '#ff7b2f' : '#ff4135';
+  ctx.beginPath();
+  ctx.moveTo(0, 8);
+  ctx.quadraticCurveTo(-20, -20, -7, -48);
+  ctx.quadraticCurveTo(3, -27, 12, -57);
+  ctx.quadraticCurveTo(28, -25, 7, 8);
+  ctx.closePath();
+  ctx.fill();
 }
 
 function drawWarning(
   ctx: CanvasRenderingContext2D,
   state: GameState,
-  poses: HTMLImageElement | null,
-  atlas: HTMLImageElement | null,
+  furnace: HTMLImageElement | null,
 ) {
-  const ratio = state.risk / faithfulPreset.riskLimit;
-  if (ratio < faithfulPreset.warningRatio || state.scene === 'title') return;
-  const normalized = (ratio - faithfulPreset.warningRatio) / (1 - faithfulPreset.warningRatio);
+  const ratio = state.risk / festivalPreset.riskLimit;
+  if (ratio < festivalPreset.warningRatio || state.scene === 'title') return;
+  const normalized = (ratio - festivalPreset.warningRatio) / (1 - festivalPreset.warningRatio);
   const size = 72 + normalized * 72 + Math.sin(state.animationFrame * 0.3) * 5;
-  const name: FrameName = ratio >= faithfulPreset.criticalRatio ? 'danger_red' : 'warning_yellow';
   const x = 6 - normalized * 8;
   const y = 54 - normalized * 10;
   const centerX = x + size / 2;
@@ -293,14 +324,14 @@ function drawWarning(
 
   ctx.save();
   ctx.globalAlpha = 0.42 + normalized * 0.38;
-  ctx.strokeStyle = ratio >= faithfulPreset.criticalRatio ? '#ff496a' : '#ffd84e';
+  ctx.strokeStyle = ratio >= festivalPreset.criticalRatio ? '#ff496a' : '#ffd84e';
   ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.arc(centerX, centerY, size * (0.48 + Math.sin(state.animationFrame * 0.22) * 0.08), 0, Math.PI * 2);
   ctx.stroke();
   ctx.globalAlpha = 1;
-  drawStar(ctx, centerX, centerY, size / 2, ratio >= faithfulPreset.criticalRatio ? '#ff4a5d' : '#ffda3f');
-  if (ratio >= faithfulPreset.criticalRatio) {
+  drawStar(ctx, centerX, centerY, size / 2, ratio >= festivalPreset.criticalRatio ? '#ff4a5d' : '#ffda3f');
+  if (ratio >= festivalPreset.criticalRatio) {
     ctx.strokeStyle = '#fff4a8';
     ctx.lineWidth = 3;
     for (let i = 0; i < 7; i += 1) {
@@ -312,25 +343,25 @@ function drawWarning(
     }
   }
 
-  if (poses) {
-    const previewPose: PoseName = state.scene === 'fail' ? 'spew' : 'nearChoke';
-    drawPoseFrame(ctx, poses, previewPose, centerX - size * 0.30, centerY - size * 0.31, size * 0.60, size * 0.62);
-  } else if (atlas) {
-    drawFrame(ctx, atlas, name, x, y, size, size);
-  }
+  const previewState: FurnaceName = state.scene === 'flaring' || state.scene === 'fail'
+    ? 'flare'
+    : ratio >= festivalPreset.criticalRatio
+      ? 'danger'
+      : 'warm';
+  if (furnace) drawFurnaceFrame(ctx, furnace, previewState, centerX - size * 0.33, centerY - size * 0.33, size * 0.66, size * 0.66);
 
-  if (ratio >= faithfulPreset.criticalRatio && (state.scene === 'playing' || state.scene === 'choking')) {
+  if (ratio >= festivalPreset.criticalRatio && (state.scene === 'playing' || state.scene === 'flaring')) {
     ctx.font = '1000 17px ui-rounded, system-ui';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    drawOutlinedText(ctx, '快嗆到了！', 10, 252, '#fff56f', '#392675', 6, '#ff4d64', 2.5);
+    drawOutlinedText(ctx, '快發爐了！', 10, 252, '#fff56f', '#392675', 6, '#ff4d34', 2.5);
   }
   ctx.restore();
 }
 
 function drawDangerVignette(ctx: CanvasRenderingContext2D, state: GameState) {
-  if (state.scene !== 'playing' && state.scene !== 'choking') return;
-  const ratio = state.risk / faithfulPreset.riskLimit;
+  if (state.scene !== 'playing' && state.scene !== 'flaring') return;
+  const ratio = state.risk / festivalPreset.riskLimit;
   if (ratio < 0.52) return;
   const intensity = Math.min(1, (ratio - 0.52) / 0.48);
   const pulse = 0.72 + Math.sin(state.animationFrame * 0.28) * 0.28;
@@ -361,7 +392,7 @@ function drawDangerVignette(ctx: CanvasRenderingContext2D, state: GameState) {
 function drawSceneOverlay(ctx: CanvasRenderingContext2D, state: GameState) {
   if (state.scene === 'playing' && !state.paused) return;
 
-  if (state.scene === 'choking') {
+  if (state.scene === 'flaring') {
     const pulse = 1 + Math.sin(state.animationFrame * 0.42) * 0.06;
     ctx.save();
     ctx.translate(200, 248);
@@ -369,7 +400,7 @@ function drawSceneOverlay(ctx: CanvasRenderingContext2D, state: GameState) {
     ctx.font = '1000 25px ui-rounded, system-ui';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    drawOutlinedText(ctx, '咳、咳！嗆到了！', 0, 0, '#fff56f', '#392675', 7, '#ff4d64', 2.5);
+    drawOutlinedText(ctx, '轟！金爐發爐啦！', 0, 0, '#fff56f', '#392675', 7, '#ff4d34', 2.5);
     ctx.restore();
     return;
   }
@@ -387,9 +418,9 @@ function drawSceneOverlay(ctx: CanvasRenderingContext2D, state: GameState) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.font = '1000 27px ui-rounded, system-ui';
-    drawOutlinedText(ctx, '鴨鴨喝牛奶', 200, 247, '#fff27d', '#2f2376', 7, '#ff7654', 2.5);
+    drawOutlinedText(ctx, '鴨鴨燒紙錢', 200, 247, '#fff27d', '#2f204f', 7, '#ff6a3d', 2.5);
     ctx.font = '900 11px ui-rounded, system-ui';
-    drawOutlinedText(ctx, '快速連點・保持節奏別嗆到', 200, 274, '#ffffff', '#2f2376', 4);
+    drawOutlinedText(ctx, '快速連點・看火勢別發爐', 200, 274, '#ffffff', '#2f204f', 4);
     return;
   }
 
@@ -425,36 +456,36 @@ function drawSceneOverlay(ctx: CanvasRenderingContext2D, state: GameState) {
   } else if (state.scene === 'clear') {
     ctx.fillStyle = '#25866e';
     ctx.font = '1000 38px ui-rounded, system-ui';
-    ctx.fillText('喝完啦！', 200, 110);
+    ctx.fillText('金紙燒完啦！', 200, 110);
     ctx.fillStyle = '#493931';
     ctx.font = '900 27px ui-rounded, system-ui';
     ctx.fillText(`${formatTime(state.finalTimeMs ?? 0)} 秒`, 200, 152);
     ctx.fillStyle = '#75665d';
     ctx.font = '800 13px system-ui';
-    ctx.fillText('鴨鴨擦擦嘴，還想再挑戰一次', 200, 187);
+    ctx.fillText('鴨鴨拍拍翅膀，還想再挑戰一次', 200, 187);
   } else {
     ctx.fillStyle = '#d14b3b';
     ctx.font = '1000 35px ui-rounded, system-ui';
     ctx.fillText(state.failureReason === 'timeout' ? '時間到！' : '噗——！', 200, 109);
     ctx.fillStyle = '#493931';
     ctx.font = '900 17px ui-rounded, system-ui';
-    ctx.fillText(state.failureReason === 'timeout' ? '牛奶還沒喝完' : '鴨鴨喝得太急了', 200, 151);
+    ctx.fillText(state.failureReason === 'timeout' ? '金紙還沒燒完' : '鴨鴨丟得太急了', 200, 151);
     ctx.fillStyle = '#75665d';
     ctx.font = '800 13px system-ui';
-    ctx.fillText('放慢幾拍，等警示退下再喝', 200, 186);
+    ctx.fillText('放慢幾拍，等火勢退下再丟', 200, 186);
   }
 }
 
-function drawFrame(
+function drawFurnaceFrame(
   ctx: CanvasRenderingContext2D,
   image: HTMLImageElement,
-  frameName: FrameName,
+  frameName: FurnaceName,
   x: number,
   y: number,
   width: number,
   height: number,
 ) {
-  const frame = atlasMetadata.frames[frameName];
+  const frame = furnaceMetadata.frames[frameName];
   ctx.drawImage(image, frame.x, frame.y, frame.w, frame.h, x, y, width, height);
 }
 

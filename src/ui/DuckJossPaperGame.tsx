@@ -2,15 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { GameAudio } from '../game/audio';
-import { FIXED_STEP_MS, GO_FRAMES, MAX_CATCH_UP_STEPS, faithfulPreset } from '../game/config';
+import { FIXED_STEP_MS, GO_FRAMES, MAX_CATCH_UP_STEPS, festivalPreset } from '../game/config';
 import { bindGameInput } from '../game/input';
 import { createGameState, type GameEvent, type GameState } from '../game/model';
 import { createGameRenderer } from '../game/renderer';
 import { applyGameEvent, stepSimulation } from '../game/simulation';
 import { formatTime, sceneStatusText } from '../game/scenes';
 
-const BEST_KEY = 'duck-milk-best-ms';
-const MUTE_KEY = 'duck-milk-muted';
+const BEST_KEY = 'duck-joss-paper-best-ms';
+const MUTE_KEY = 'duck-joss-paper-muted';
 
 function readBest(): number | null {
   const value = Number(window.localStorage.getItem(BEST_KEY));
@@ -25,7 +25,7 @@ function copyState(state: GameState): GameState {
   return { ...state };
 }
 
-export default function DuckMilkGame() {
+export default function DuckJossPaperGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [snapshot, setSnapshot] = useState<GameState>(() => createGameState());
   const gameRef = useRef<GameState>(snapshot);
@@ -49,7 +49,7 @@ export default function DuckMilkGame() {
       audio.stopBgm();
       audio.playClear();
     }
-    if (previous.scene === 'playing' && (next.scene === 'choking' || next.scene === 'fail')) {
+    if (previous.scene === 'playing' && (next.scene === 'flaring' || next.scene === 'fail')) {
       audio.stopBgm();
       audio.playFail();
     }
@@ -64,7 +64,7 @@ export default function DuckMilkGame() {
       void audioRef.current?.unlock().then(() => audioRef.current?.playReady());
     }
     if (event.type === 'press' && previous.scene === 'playing') {
-      audioRef.current?.playSwallow();
+      audioRef.current?.playPaperToss();
     }
     if (event.type === 'togglePause' || event.type === 'pause' || event.type === 'resume') {
       audioRef.current?.setPaused(next.paused);
@@ -165,19 +165,19 @@ export default function DuckMilkGame() {
     else if (snapshot.paused) dispatch({ type: 'resume' });
   };
 
-  const riskRatio = Math.min(1, snapshot.risk / faithfulPreset.riskLimit);
-  const dangerClass = riskRatio >= faithfulPreset.criticalRatio ? 'critical' : riskRatio >= faithfulPreset.warningRatio ? 'warning' : 'quiet';
+  const riskRatio = Math.min(1, snapshot.risk / festivalPreset.riskLimit);
+  const dangerClass = riskRatio >= festivalPreset.criticalRatio ? 'critical' : riskRatio >= festivalPreset.warningRatio ? 'warning' : 'quiet';
   const showPrimary = snapshot.scene === 'title' || snapshot.scene === 'clear' || snapshot.scene === 'fail' || snapshot.paused;
 
   return (
     <main className="game-shell">
-      <section className="game-card" aria-label="鴨鴨喝牛奶遊戲">
+      <section className="game-card" aria-label="鴨鴨燒紙錢遊戲">
         <header className="game-header">
-          <div className="title-lockup" aria-label="鴨鴨喝牛奶，20 秒連點挑戰">
+          <div className="title-lockup" aria-label="鴨鴨燒紙錢，中元普渡連點挑戰">
             <span className="logo-duck" aria-hidden="true">●</span>
             <div>
-              <strong>鴨鴨喝牛奶</strong>
-              <span>20 秒連點挑戰</span>
+              <strong>鴨鴨燒紙錢</strong>
+              <span>中元普渡限定挑戰</span>
             </div>
           </div>
 
@@ -208,7 +208,7 @@ export default function DuckMilkGame() {
             height={300}
             role="button"
             tabIndex={0}
-            aria-label="遊戲畫面。遊戲中快速連點讓鴨鴨喝牛奶；電腦可連按空白鍵。"
+            aria-label="遊戲畫面。遊戲中快速連點讓鴨鴨把金紙投入金爐；電腦可連按空白鍵。"
           />
           <div className="screen-gloss" aria-hidden="true" />
         </div>
@@ -216,28 +216,28 @@ export default function DuckMilkGame() {
         <aside className="game-panel" aria-label="遊戲狀態與操作">
           {showPrimary ? (
             <button className="primary-button" type="button" onClick={primaryAction}>
-              <strong>{snapshot.scene === 'title' ? '開始遊戲' : snapshot.paused ? '繼續遊戲' : '再喝一瓶'}</strong>
+              <strong>{snapshot.scene === 'title' ? '開始遊戲' : snapshot.paused ? '繼續遊戲' : '再燒一次'}</strong>
               <span>{snapshot.scene === 'title' ? '點一下，準備 READY / GO' : '調整節奏，再挑戰最佳時間'}</span>
             </button>
-          ) : snapshot.scene === 'choking' ? (
-            <div className="play-coach choking" aria-hidden="true">
+          ) : snapshot.scene === 'flaring' ? (
+            <div className="play-coach flaring" aria-hidden="true">
               <span className="gesture-dot" />
               <div>
-                <strong>鴨鴨嗆到了！</strong>
-                <span>先看看鴨鴨的反應，再調整下一次節奏</span>
+                <strong>金爐發爐啦！</strong>
+                <span>先看完發爐反應，再調整下一次投紙節奏</span>
               </div>
             </div>
           ) : (
-            <div className={`play-coach ${snapshot.drinkAnimationFrames > 0 ? 'holding' : ''}`} aria-hidden="true">
+            <div className={`play-coach ${snapshot.throwAnimationFrames > 0 ? 'throwing' : ''}`} aria-hidden="true">
               <span className="gesture-dot" />
               <div>
-                <strong>{snapshot.drinkAnimationFrames > 0 ? '繼續連點喝奶！' : '連點遊戲畫面'}</strong>
-                <span>{snapshot.drinkAnimationFrames > 0 ? '盯著左側爆星，抓準停手時機' : '點得越快、喝得越快，也越容易嗆到'}</span>
+                <strong>{snapshot.throwAnimationFrames > 0 ? '繼續連點丟金紙！' : '連點遊戲畫面'}</strong>
+                <span>{snapshot.throwAnimationFrames > 0 ? '盯著左側火焰，抓準停手時機' : '丟得越快、燒得越快，也越容易發爐'}</span>
               </div>
             </div>
           )}
 
-          <p className="micro-tip">貼近紅色警戒能喝得更快；太貪心就會嗆到</p>
+          <p className="micro-tip">貼近紅色警戒能燒得更快；太貪心金爐就會發爐</p>
         </aside>
 
         <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">{sceneStatusText(snapshot)}</p>

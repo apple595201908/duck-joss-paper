@@ -1,13 +1,13 @@
-import { CHOKE_REACTION_FRAMES, FIXED_STEP_MS, GO_FRAMES, faithfulPreset } from './config';
-import { getRiskReliefPerFrame, getTapMilkAmount } from './metrics';
+import { FLARE_REACTION_FRAMES, FIXED_STEP_MS, GO_FRAMES, festivalPreset } from './config';
+import { getPaperThrowAmount, getRiskReliefPerFrame } from './metrics';
 import { createRoundState, type GameEvent, type GameState } from './model';
 
 function finishClear(next: GameState): GameState {
-  const finalTime = Math.min(next.elapsedMs, faithfulPreset.timeLimitMs);
+  const finalTime = Math.min(next.elapsedMs, festivalPreset.timeLimitMs);
   return {
     ...next,
     scene: 'clear',
-    progress: faithfulPreset.capacity,
+    progress: festivalPreset.capacity,
     charge: 0,
     holding: false,
     paused: false,
@@ -15,11 +15,11 @@ function finishClear(next: GameState): GameState {
     finalTimeMs: finalTime,
     bestTimeMs: next.bestTimeMs === null ? finalTime : Math.min(next.bestTimeMs, finalTime),
     reactionFramesRemaining: 0,
-    drinkAnimationFrames: 0,
+    throwAnimationFrames: 0,
   };
 }
 
-function finishFail(next: GameState, reason: 'spew' | 'timeout'): GameState {
+function finishFail(next: GameState, reason: 'flare' | 'timeout'): GameState {
   return {
     ...next,
     scene: 'fail',
@@ -29,28 +29,28 @@ function finishFail(next: GameState, reason: 'spew' | 'timeout'): GameState {
     failureReason: reason,
     finalTimeMs: null,
     reactionFramesRemaining: 0,
-    drinkAnimationFrames: 0,
+    throwAnimationFrames: 0,
   };
 }
 
-function beginChokeReaction(next: GameState): GameState {
+function beginFlareReaction(next: GameState): GameState {
   return {
     ...next,
-    scene: 'choking',
-    failureReason: 'spew',
+    scene: 'flaring',
+    failureReason: 'flare',
     charge: 0,
     holding: false,
     paused: false,
-    reactionFramesRemaining: CHOKE_REACTION_FRAMES,
-    drinkAnimationFrames: 0,
+    reactionFramesRemaining: FLARE_REACTION_FRAMES,
+    throwAnimationFrames: 0,
   };
 }
 
 function checkRoundEnd(next: GameState): GameState {
-  // Faithful ordering: clearing the bottle wins even if this step also crosses the risk limit.
-  if (next.progress >= faithfulPreset.capacity) return finishClear(next);
-  if (next.risk >= faithfulPreset.riskLimit) return beginChokeReaction(next);
-  if (next.elapsedMs >= faithfulPreset.timeLimitMs) return finishFail(next, 'timeout');
+  // Finishing the paper stack wins even if the same tap also crosses the flare limit.
+  if (next.progress >= festivalPreset.capacity) return finishClear(next);
+  if (next.risk >= festivalPreset.riskLimit) return beginFlareReaction(next);
+  if (next.elapsedMs >= festivalPreset.timeLimitMs) return finishFail(next, 'timeout');
   return next;
 }
 
@@ -80,16 +80,16 @@ export function applyGameEvent(state: GameState, event: GameEvent): GameState {
   if (state.scene !== 'playing' || state.paused) return state;
 
   if (event.type === 'press') {
-    const tapMilk = getTapMilkAmount(state.speedLevel, state.risk);
-    const tapRisk = faithfulPreset.tapRiskBase + state.speedLevel * faithfulPreset.tapRiskSpeedBonus;
+    const paperAmount = getPaperThrowAmount(state.speedLevel, state.risk);
+    const tapRisk = festivalPreset.tapRiskBase + state.speedLevel * festivalPreset.tapRiskSpeedBonus;
     return checkRoundEnd({
       ...state,
       holding: false,
       charge: 0,
-      progress: state.progress + tapMilk,
-      risk: (state.risk + tapRisk) * (1 + faithfulPreset.riskGrowth),
+      progress: state.progress + paperAmount,
+      risk: (state.risk + tapRisk) * (1 + festivalPreset.riskGrowth),
       clicksInWindow: state.clicksInWindow + 1,
-      drinkAnimationFrames: faithfulPreset.tapDrinkAnimationFrames,
+      throwAnimationFrames: festivalPreset.tapThrowAnimationFrames,
     });
   }
 
@@ -103,10 +103,10 @@ function updateSpeed(next: GameState): GameState {
   let speedLevel = next.speedLevel;
   let downshiftFrames = next.downshiftFrames;
 
-  if (rateWindowFrame >= faithfulPreset.rateWindowFrames) {
-    targetSpeedLevel = clicksInWindow <= faithfulPreset.slowClickThreshold
+  if (rateWindowFrame >= festivalPreset.rateWindowFrames) {
+    targetSpeedLevel = clicksInWindow <= festivalPreset.slowClickThreshold
       ? 0
-      : clicksInWindow < faithfulPreset.fastClickThreshold
+      : clicksInWindow < festivalPreset.fastClickThreshold
         ? 1
         : 2;
     rateWindowFrame = 0;
@@ -120,7 +120,7 @@ function updateSpeed(next: GameState): GameState {
 
   if (targetSpeedLevel < speedLevel) {
     downshiftFrames += 1;
-    if (downshiftFrames >= faithfulPreset.downshiftDelayFrames) {
+    if (downshiftFrames >= festivalPreset.downshiftDelayFrames) {
       speedLevel = Math.max(targetSpeedLevel, speedLevel - 1) as 0 | 1 | 2;
       downshiftFrames = 0;
     }
@@ -134,15 +134,15 @@ function updateSpeed(next: GameState): GameState {
 export function stepSimulation(state: GameState): GameState {
   if (state.paused || state.scene === 'title' || state.scene === 'clear' || state.scene === 'fail') return state;
 
-  if (state.scene === 'choking') {
+  if (state.scene === 'flaring') {
     const reactionFramesRemaining = state.reactionFramesRemaining - 1;
     if (reactionFramesRemaining <= 0) {
-      return finishFail({ ...state, reactionFramesRemaining: 0 }, 'spew');
+      return finishFail({ ...state, reactionFramesRemaining: 0 }, 'flare');
     }
     return {
       ...state,
       reactionFramesRemaining,
-      animationFrame: (state.animationFrame + 1) % faithfulPreset.animationCycleFrames,
+      animationFrame: (state.animationFrame + 1) % festivalPreset.animationCycleFrames,
     };
   }
 
@@ -154,18 +154,18 @@ export function stepSimulation(state: GameState): GameState {
     return { ...state, readyFramesRemaining };
   }
 
-  const animationFrame = (state.animationFrame + 1) % faithfulPreset.animationCycleFrames;
+  const animationFrame = (state.animationFrame + 1) % festivalPreset.animationCycleFrames;
   let risk = state.risk;
   const riskRelief = getRiskReliefPerFrame(risk);
   risk -= riskRelief;
-  if ((animationFrame + 40) % faithfulPreset.animationCycleFrames === 0) risk -= 0.188;
+  if ((animationFrame + 40) % festivalPreset.animationCycleFrames === 0) risk -= 0.188;
   risk = Math.max(0, risk);
 
   const advanced = updateSpeed({
     ...state,
     animationFrame,
     risk,
-    drinkAnimationFrames: Math.max(0, state.drinkAnimationFrames - 1),
+    throwAnimationFrames: Math.max(0, state.throwAnimationFrames - 1),
     elapsedMs: state.elapsedMs + FIXED_STEP_MS,
   });
 

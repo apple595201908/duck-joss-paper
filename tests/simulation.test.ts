@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { CHOKE_REACTION_FRAMES, faithfulPreset } from '../src/game/config';
+import { FLARE_REACTION_FRAMES, festivalPreset } from '../src/game/config';
 import {
   getDisplayedElapsedMs,
-  getMilkRemainingPercent,
+  getPaperRemainingPercent,
   getRiskReliefPerFrame,
-  getTapMilkAmount,
+  getPaperThrowAmount,
 } from '../src/game/metrics';
 import { createGameState, type GameState } from '../src/game/model';
 import { applyGameEvent, stepSimulation } from '../src/game/simulation';
@@ -23,16 +23,16 @@ function playTapCadence(intervalFrames: number, restAboveRatio?: number): GameSt
     while (
       state.scene === 'playing'
       && restAboveRatio !== undefined
-      && state.risk / faithfulPreset.riskLimit > restAboveRatio
+      && state.risk / festivalPreset.riskLimit > restAboveRatio
     ) {
       state = stepSimulation(state);
     }
   }
-  while (state.scene === 'choking') state = stepSimulation(state);
+  while (state.scene === 'flaring') state = stepSimulation(state);
   return state;
 }
 
-describe('duck milk tap simulation', () => {
+describe('duck joss-paper tap simulation', () => {
   it('fails by timeout after 60 seconds without input', () => {
     let state = playing();
     for (let frame = 0; frame < 3_700 && state.scene === 'playing'; frame += 1) {
@@ -40,30 +40,30 @@ describe('duck milk tap simulation', () => {
     }
     expect(state.scene).toBe('fail');
     expect(state.failureReason).toBe('timeout');
-    expect(state.elapsedMs).toBeGreaterThanOrEqual(faithfulPreset.timeLimitMs);
+    expect(state.elapsedMs).toBeGreaterThanOrEqual(festivalPreset.timeLimitMs);
   });
 
-  it('drinks one discrete sip on press and ignores release', () => {
+  it('throws one discrete paper bundle on press and ignores release', () => {
     const initial = playing();
     const tapped = applyGameEvent(initial, { type: 'press' });
-    expect(tapped.progress).toBeCloseTo(getTapMilkAmount(0), 7);
-    expect(tapped.drinkAnimationFrames).toBe(faithfulPreset.tapDrinkAnimationFrames);
+    expect(tapped.progress).toBeCloseTo(getPaperThrowAmount(0), 7);
+    expect(tapped.throwAnimationFrames).toBe(festivalPreset.tapThrowAnimationFrames);
     expect(applyGameEvent(tapped, { type: 'release' })).toEqual(tapped);
   });
 
   it('clears at capacity, freezes time, and keeps only the better record', () => {
     let state = applyGameEvent(
-      playing({ progress: faithfulPreset.capacity - 1, elapsedMs: 9_876, bestTimeMs: 12_000 }),
+      playing({ progress: festivalPreset.capacity - 1, elapsedMs: 9_876, bestTimeMs: 12_000 }),
       { type: 'press' },
     );
     expect(state.scene).toBe('clear');
-    expect(state.progress).toBe(faithfulPreset.capacity);
+    expect(state.progress).toBe(festivalPreset.capacity);
     expect(state.finalTimeMs).toBe(9_876);
     expect(state.bestTimeMs).toBe(9_876);
     expect(stepSimulation(state).elapsedMs).toBe(9_876);
 
     state = applyGameEvent(
-      playing({ progress: faithfulPreset.capacity - 1, elapsedMs: 14_000, bestTimeMs: 9_876 }),
+      playing({ progress: festivalPreset.capacity - 1, elapsedMs: 14_000, bestTimeMs: 9_876 }),
       { type: 'press' },
     );
     expect(state.bestTimeMs).toBe(9_876);
@@ -78,20 +78,20 @@ describe('duck milk tap simulation', () => {
     expect(state.targetSpeedLevel).toBe(expected);
   });
 
-  it('gives faster established rhythms a small milk reward and a larger risk cost', () => {
+  it('gives faster established rhythms a small paper reward and a larger flare cost', () => {
     const slow = applyGameEvent(playing({ speedLevel: 0 }), { type: 'press' });
     const fast = applyGameEvent(playing({ speedLevel: 2 }), { type: 'press' });
     expect(fast.progress).toBeGreaterThan(slow.progress);
     expect(fast.risk).toBeGreaterThan(slow.risk);
-    expect(fast.progress - slow.progress).toBeCloseTo(faithfulPreset.tapMilkSpeedBonus * 2, 7);
+    expect(fast.progress - slow.progress).toBeCloseTo(festivalPreset.tapPaperSpeedBonus * 2, 7);
   });
 
   it('rewards skilled taps that stay near the visual danger zone', () => {
-    const safeAmount = getTapMilkAmount(2, faithfulPreset.riskLimit * 0.2);
-    const warningAmount = getTapMilkAmount(2, faithfulPreset.riskLimit * 0.6);
-    const criticalAmount = getTapMilkAmount(2, faithfulPreset.riskLimit * 0.8);
+    const safeAmount = getPaperThrowAmount(2, festivalPreset.riskLimit * 0.2);
+    const warningAmount = getPaperThrowAmount(2, festivalPreset.riskLimit * 0.6);
+    const criticalAmount = getPaperThrowAmount(2, festivalPreset.riskLimit * 0.8);
     expect(warningAmount).toBeGreaterThan(safeAmount);
-    expect(criticalAmount - safeAmount).toBeCloseTo(faithfulPreset.riskMilkMaxBonus, 7);
+    expect(criticalAmount - safeAmount).toBeCloseTo(festivalPreset.riskPaperMaxBonus, 7);
   });
 
   it('recovers risk faster when danger is already high', () => {
@@ -100,33 +100,33 @@ describe('duck milk tap simulation', () => {
     expect(state.risk).toBeCloseTo(90 - getRiskReliefPerFrame(90), 7);
   });
 
-  it('keeps the drink pose alive across rapid taps', () => {
+  it('keeps the throw pose alive across rapid taps', () => {
     let state = applyGameEvent(playing(), { type: 'press' });
     for (let frame = 0; frame < 8; frame += 1) state = stepSimulation(state);
-    expect(state.drinkAnimationFrames).toBeGreaterThan(0);
+    expect(state.throwAnimationFrames).toBeGreaterThan(0);
     state = applyGameEvent(state, { type: 'press' });
-    expect(state.drinkAnimationFrames).toBe(faithfulPreset.tapDrinkAnimationFrames);
+    expect(state.throwAnimationFrames).toBe(festivalPreset.tapThrowAnimationFrames);
   });
 
-  it('shows the choke reaction before the fail scene', () => {
+  it('shows the furnace flare reaction before the fail scene', () => {
     let state = applyGameEvent(
-      playing({ risk: faithfulPreset.riskLimit - 1, elapsedMs: 8_000 }),
+      playing({ risk: festivalPreset.riskLimit - 1, elapsedMs: 8_000 }),
       { type: 'press' },
     );
-    expect(state.scene).toBe('choking');
-    expect(state.reactionFramesRemaining).toBe(CHOKE_REACTION_FRAMES);
+    expect(state.scene).toBe('flaring');
+    expect(state.reactionFramesRemaining).toBe(FLARE_REACTION_FRAMES);
     expect(state.elapsedMs).toBe(8_000);
 
-    for (let frame = 1; frame < CHOKE_REACTION_FRAMES; frame += 1) state = stepSimulation(state);
-    expect(state.scene).toBe('choking');
+    for (let frame = 1; frame < FLARE_REACTION_FRAMES; frame += 1) state = stepSimulation(state);
+    expect(state.scene).toBe('flaring');
     state = stepSimulation(state);
     expect(state.scene).toBe('fail');
-    expect(state.failureReason).toBe('spew');
+    expect(state.failureReason).toBe('flare');
   });
 
-  it('prioritizes finishing the bottle when milk and risk cross together', () => {
+  it('prioritizes finishing the paper stack when progress and risk cross together', () => {
     const state = applyGameEvent(
-      playing({ progress: faithfulPreset.capacity - 1, risk: faithfulPreset.riskLimit - 1 }),
+      playing({ progress: festivalPreset.capacity - 1, risk: festivalPreset.riskLimit - 1 }),
       { type: 'press' },
     );
     expect(state.scene).toBe('clear');
@@ -139,11 +139,11 @@ describe('duck milk tap simulation', () => {
     expect(stepSimulation(paused).elapsedMs).toBe(1_500);
   });
 
-  it('punishes reckless tapping before half the bottle is finished', () => {
+  it('punishes reckless tapping before half the paper stack is finished', () => {
     const state = playTapCadence(7);
     expect(state.scene).toBe('fail');
-    expect(state.failureReason).toBe('spew');
-    expect(state.progress).toBeLessThan(faithfulPreset.capacity * 0.5);
+    expect(state.failureReason).toBe('flare');
+    expect(state.progress).toBeLessThan(festivalPreset.capacity * 0.5);
   });
 
   it('lets a normal tapping rhythm finish in about 20 seconds', () => {
@@ -151,8 +151,8 @@ describe('duck milk tap simulation', () => {
     expect(state.scene).toBe('clear');
     expect(state.finalTimeMs).toBeGreaterThan(19_000);
     expect(state.finalTimeMs).toBeLessThan(22_000);
-    expect(state.risk).toBeGreaterThan(faithfulPreset.riskLimit * faithfulPreset.warningRatio);
-    expect(state.risk).toBeLessThan(faithfulPreset.riskLimit * faithfulPreset.criticalRatio);
+    expect(state.risk).toBeGreaterThan(festivalPreset.riskLimit * festivalPreset.warningRatio);
+    expect(state.risk).toBeLessThan(festivalPreset.riskLimit * festivalPreset.criticalRatio);
   });
 
   it('lets a relaxed tapping rhythm finish safely in roughly half a minute', () => {
@@ -160,7 +160,7 @@ describe('duck milk tap simulation', () => {
     expect(state.scene).toBe('clear');
     expect(state.finalTimeMs).toBeGreaterThan(30_000);
     expect(state.finalTimeMs).toBeLessThan(40_000);
-    expect(state.risk).toBeLessThan(faithfulPreset.riskLimit * faithfulPreset.warningRatio);
+    expect(state.risk).toBeLessThan(festivalPreset.riskLimit * festivalPreset.warningRatio);
   });
 
   it('allows an expert to ride high risk without making the round instant', () => {
@@ -168,7 +168,7 @@ describe('duck milk tap simulation', () => {
     expect(state.scene).toBe('clear');
     expect(state.finalTimeMs).toBeGreaterThan(15_000);
     expect(state.finalTimeMs).toBeLessThan(17_000);
-    expect(state.risk).toBeGreaterThan(faithfulPreset.riskLimit * 0.70);
+    expect(state.risk).toBeGreaterThan(festivalPreset.riskLimit * 0.70);
   });
 
   it('creates a meaningful finish-time gap between expert and novice play', () => {
@@ -182,14 +182,14 @@ describe('duck milk tap simulation', () => {
   it('shows elapsed time from zero and caps it at the round limit', () => {
     expect(getDisplayedElapsedMs(createGameState())).toBe(0);
     expect(getDisplayedElapsedMs(playing({ elapsedMs: 12_345 }))).toBe(12_345);
-    expect(getDisplayedElapsedMs(playing({ elapsedMs: 75_000 }))).toBe(faithfulPreset.timeLimitMs);
+    expect(getDisplayedElapsedMs(playing({ elapsedMs: 75_000 }))).toBe(festivalPreset.timeLimitMs);
   });
 
-  it('keeps the bottle percentage bounded and updates it from the same progress value', () => {
-    expect(getMilkRemainingPercent(playing())).toBe(100);
+  it('keeps the paper percentage bounded and updates it from the same progress value', () => {
+    expect(getPaperRemainingPercent(playing())).toBe(100);
     const tapped = applyGameEvent(playing({ progress: 110 }), { type: 'press' });
-    const expected = Math.round((1 - tapped.progress / faithfulPreset.capacity) * 100);
-    expect(getMilkRemainingPercent(tapped)).toBe(expected);
-    expect(getMilkRemainingPercent(playing({ progress: faithfulPreset.capacity + 20 }))).toBe(0);
+    const expected = Math.round((1 - tapped.progress / festivalPreset.capacity) * 100);
+    expect(getPaperRemainingPercent(tapped)).toBe(expected);
+    expect(getPaperRemainingPercent(playing({ progress: festivalPreset.capacity + 20 }))).toBe(0);
   });
 });
