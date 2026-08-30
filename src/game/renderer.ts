@@ -153,7 +153,7 @@ function drawHud(ctx: CanvasRenderingContext2D, state: GameState) {
   const pulse = urgent ? 1 + Math.sin(state.animationFrame * 0.34) * 0.045 : 1;
 
   ctx.save();
-  ctx.translate(200, 31);
+  ctx.translate(200, 27);
   ctx.scale(pulse, pulse);
   ctx.fillStyle = '#fff8cced';
   ctx.strokeStyle = '#ffaf38';
@@ -195,10 +195,10 @@ function drawCharacter(
               ? 'throw'
               : 'ready';
     const target = pose === 'flare'
-      ? { x: 72, y: 58 + bob, w: 220, h: 220 }
+      ? { x: 72, y: 42 + bob, w: 180, h: 180 }
       : pose === 'fastThrow'
-        ? { x: 84, y: 63 + bob, w: 210, h: 210 }
-        : { x: 94, y: 66 + bob, w: 198, h: 198 };
+        ? { x: 82, y: 44 + bob, w: 180, h: 180 }
+        : { x: 92, y: 48 + bob, w: 176, h: 176 };
     ctx.save();
     if (isThrowing && state.speedLevel >= 2) ctx.rotate(Math.sin(state.animationFrame * 0.42) * 0.008);
     drawPoseFrame(ctx, poses, pose, target.x, target.y, target.w, target.h);
@@ -211,7 +211,7 @@ function drawCharacter(
 
 function drawFallbackDuck(ctx: CanvasRenderingContext2D, state: GameState, bob: number) {
   ctx.save();
-  ctx.translate(200, 168 + bob);
+  ctx.translate(182, 135 + bob);
   ctx.fillStyle = '#ffdf62';
   ctx.strokeStyle = '#c88932';
   ctx.lineWidth = 5;
@@ -281,24 +281,24 @@ function drawPaperSupply(ctx: CanvasRenderingContext2D, state: GameState) {
   ctx.save();
   // Keep the paper supply centered along the bottom so it never merges with
   // the left-side flare warning and remains readable during a final sprint.
-  ctx.translate(200, 257);
+  ctx.translate(200, 266);
   ctx.shadowColor = '#24144b88';
   ctx.shadowBlur = 9;
   ctx.fillStyle = '#301451e8';
   ctx.strokeStyle = '#ffd84e';
   ctx.lineWidth = 3;
-  roundedRect(ctx, -74, -37, 148, 76, 18);
+  roundedRect(ctx, -74, -30, 148, 63, 16);
   ctx.fill();
   ctx.stroke();
   ctx.shadowBlur = 0;
 
   ctx.fillStyle = '#8f2638';
-  roundedRect(ctx, 0, -30, 67, 22, 10);
+  roundedRect(ctx, 0, -25, 67, 20, 10);
   ctx.fill();
   ctx.font = '1000 12px ui-rounded, system-ui';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  drawOutlinedText(ctx, '金紙剩餘', 33.5, -19, '#fff3a1', '#32164f', 3.5);
+  drawOutlinedText(ctx, '金紙剩餘', 33.5, -15, '#fff3a1', '#32164f', 3.5);
 
   ctx.fillStyle = '#762333';
   ctx.strokeStyle = '#f8b73f';
