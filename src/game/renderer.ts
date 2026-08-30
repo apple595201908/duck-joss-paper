@@ -13,6 +13,11 @@ import {
 type FurnaceName = keyof typeof furnaceMetadata.frames;
 type PoseName = keyof typeof poseMetadata.frames;
 
+const FURNACE_CENTER_X = 326;
+const FURNACE_CENTER_Y = 169;
+const FURNACE_SIZE = 164;
+const FURNACE_MOUTH_Y = 171;
+
 export interface GameRenderer {
   render: (state: GameState) => void;
   destroy: () => void;
@@ -189,10 +194,10 @@ function drawCharacter(
               ? 'throw'
               : 'ready';
     const target = pose === 'flare'
-      ? { x: 86, y: 58 + bob, w: 220, h: 220 }
+      ? { x: 72, y: 58 + bob, w: 220, h: 220 }
       : pose === 'fastThrow'
-        ? { x: 98, y: 63 + bob, w: 210, h: 210 }
-        : { x: 108, y: 66 + bob, w: 198, h: 198 };
+        ? { x: 84, y: 63 + bob, w: 210, h: 210 }
+        : { x: 94, y: 66 + bob, w: 198, h: 198 };
     ctx.save();
     if (isThrowing && state.speedLevel >= 2) ctx.rotate(Math.sin(state.animationFrame * 0.42) * 0.008);
     drawPoseFrame(ctx, poses, pose, target.x, target.y, target.w, target.h);
@@ -243,11 +248,21 @@ function drawFurnace(ctx: CanvasRenderingContext2D, state: GameState, furnace: H
     : 1;
 
   ctx.save();
-  ctx.translate(337, 167);
+  ctx.translate(FURNACE_CENTER_X, FURNACE_CENTER_Y);
   ctx.scale(pulse, pulse);
   ctx.shadowColor = furnaceState === 'flare' ? '#ff4015cc' : '#e39b3877';
   ctx.shadowBlur = furnaceState === 'flare' ? 18 : 8;
-  if (furnace) drawFurnaceFrame(ctx, furnace, furnaceState, -63, -72, 126, 126);
+  if (furnace) {
+    drawFurnaceFrame(
+      ctx,
+      furnace,
+      furnaceState,
+      -FURNACE_SIZE / 2,
+      -FURNACE_SIZE / 2,
+      FURNACE_SIZE,
+      FURNACE_SIZE,
+    );
+  }
   else drawFallbackFurnace(ctx, furnaceState);
   ctx.restore();
 }
@@ -256,64 +271,64 @@ function drawPaperSupply(ctx: CanvasRenderingContext2D, state: GameState) {
   if (state.scene === 'title') return;
   const paperRatio = getPaperRemainingRatio(state);
   const paperPercent = getPaperRemainingPercent(state);
-  const visibleSheets = paperRatio <= 0 ? 0 : Math.max(1, Math.ceil(paperRatio * 12));
-  const stackHeight = 5 + paperRatio * 28;
+  const visibleSheets = paperRatio <= 0 ? 0 : Math.max(1, Math.ceil(paperRatio * 16));
+  const stackHeight = 7 + paperRatio * 40;
   const pulse = state.scene === 'playing' && state.throwAnimationFrames > 0
     ? Math.sin(state.animationFrame * 0.55) * 1.4
     : 0;
 
   ctx.save();
-  ctx.translate(58, 234);
+  ctx.translate(62, 226);
   ctx.shadowColor = '#24144b88';
   ctx.shadowBlur = 9;
   ctx.fillStyle = '#301451e8';
   ctx.strokeStyle = '#ffd84e';
   ctx.lineWidth = 3;
-  roundedRect(ctx, -47, -53, 94, 102, 17);
+  roundedRect(ctx, -58, -60, 116, 122, 19);
   ctx.fill();
   ctx.stroke();
   ctx.shadowBlur = 0;
 
   ctx.fillStyle = '#8f2638';
-  roundedRect(ctx, -41, -47, 82, 19, 9);
+  roundedRect(ctx, -51, -53, 102, 22, 10);
   ctx.fill();
-  ctx.font = '1000 10px ui-rounded, system-ui';
+  ctx.font = '1000 12px ui-rounded, system-ui';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  drawOutlinedText(ctx, '金紙剩餘', 0, -37, '#fff3a1', '#32164f', 3);
+  drawOutlinedText(ctx, '金紙剩餘', 0, -42, '#fff3a1', '#32164f', 3.5);
 
   ctx.fillStyle = '#762333';
   ctx.strokeStyle = '#f8b73f';
   ctx.lineWidth = 2;
-  roundedRect(ctx, -35, 11, 70, 11, 5);
+  roundedRect(ctx, -45, 18, 90, 13, 6);
   ctx.fill();
   ctx.stroke();
 
   for (let index = 0; index < visibleSheets; index += 1) {
     const distance = visibleSheets <= 1 ? 0 : index / (visibleSheets - 1);
-    const sheetY = 9 - distance * stackHeight + (index === visibleSheets - 1 ? pulse : 0);
-    const sheetWidth = 57 - distance * 3;
+    const sheetY = 15 - distance * stackHeight + (index === visibleSheets - 1 ? pulse : 0);
+    const sheetWidth = 77 - distance * 5;
     ctx.save();
     ctx.translate(Math.sin(index * 2.19) * 2.2, sheetY);
     ctx.rotate(Math.sin(index * 4.7) * 0.025);
     ctx.fillStyle = index === visibleSheets - 1 ? '#ffe66b' : '#f7c93e';
     ctx.strokeStyle = '#7c382e';
     ctx.lineWidth = 1.4;
-    roundedRect(ctx, -sheetWidth / 2, -4, sheetWidth, 10, 2);
+    roundedRect(ctx, -sheetWidth / 2, -5, sheetWidth, 12, 2);
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = '#ec6238';
-    ctx.fillRect(-7, -2, 14, 6);
+    ctx.fillRect(-9, -3, 18, 8);
     ctx.restore();
   }
 
   if (visibleSheets === 0) {
     ctx.font = '900 12px ui-rounded, system-ui';
-    drawOutlinedText(ctx, '燒完', 0, -5, '#fff0ad', '#32164f', 3);
+    drawOutlinedText(ctx, '燒完', 0, -2, '#fff0ad', '#32164f', 3);
   }
 
-  ctx.font = '1000 18px ui-rounded, system-ui';
-  drawOutlinedText(ctx, `${paperPercent}%`, 0, 36, paperPercent <= 20 ? '#ff8063' : '#fff36a', '#32164f', 5, '#a83b37', 1.2);
+  ctx.font = '1000 24px ui-rounded, system-ui';
+  drawOutlinedText(ctx, `${paperPercent}%`, 0, 49, paperPercent <= 20 ? '#ff8063' : '#fff36a', '#32164f', 6, '#a83b37', 1.5);
   ctx.restore();
 }
 
@@ -323,7 +338,7 @@ function drawFlyingPaper(ctx: CanvasRenderingContext2D, state: GameState) {
   const count = state.speedLevel >= 2 ? 2 : 1;
   for (let index = 0; index < count; index += 1) {
     const phase = (progress + index * 0.42) % 1;
-    const x = 248 + phase * 73;
+    const x = 248 + phase * (FURNACE_CENTER_X - 248);
     const y = 137 - Math.sin(phase * Math.PI) * 27 + index * 5;
     ctx.save();
     ctx.translate(x, y);
@@ -344,31 +359,43 @@ function drawFlareBackdrop(ctx: CanvasRenderingContext2D, state: GameState) {
   if (state.scene !== 'flaring') return;
   const progress = getFlareAnimationProgress(state.reactionFramesRemaining);
   const phase = getFlareAnimationPhase(state.reactionFramesRemaining);
-  const ignitionFlash = Math.max(0, 1 - progress / 0.18);
-  const heat = phase === 'smoke' ? Math.max(0.2, 1 - (progress - 0.78) / 0.22) : 1;
+  const fireIntensity = phase === 'ignition'
+    ? 0.55 + progress / 0.18 * 0.65
+    : phase === 'surge'
+      ? 1.35
+      : phase === 'inferno'
+        ? 1.18
+        : Math.max(0.48, 1.05 - (progress - 0.78) / 0.22 * 0.57);
 
   ctx.save();
-  const glow = ctx.createRadialGradient(337, 164, 10, 337, 164, 238);
-  glow.addColorStop(0, `rgba(255, 246, 139, ${0.50 * heat})`);
-  glow.addColorStop(0.28, `rgba(255, 86, 31, ${0.34 * heat})`);
+  const glow = ctx.createRadialGradient(
+    FURNACE_CENTER_X,
+    FURNACE_MOUTH_Y,
+    10,
+    FURNACE_CENTER_X,
+    FURNACE_MOUTH_Y,
+    230,
+  );
+  glow.addColorStop(0, `rgba(255, 246, 139, ${0.42 * fireIntensity})`);
+  glow.addColorStop(0.31, `rgba(255, 86, 31, ${0.28 * fireIntensity})`);
   glow.addColorStop(1, 'rgba(92, 11, 44, 0)');
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, 400, 300);
 
-  if (ignitionFlash > 0) {
-    ctx.fillStyle = `rgba(255, 250, 206, ${ignitionFlash * 0.72})`;
-    ctx.fillRect(0, 0, 400, 300);
-  }
-
-  ctx.globalAlpha = 0.18 * heat;
-  ctx.strokeStyle = '#ffdf62';
-  ctx.lineWidth = 4;
-  for (let index = 0; index < 9; index += 1) {
-    const offset = ((progress * 220 + index * 47) % 250) - 25;
-    ctx.beginPath();
-    ctx.moveTo(240 + index * 18, 300);
-    ctx.quadraticCurveTo(250 + index * 17, 240 - offset * 0.18, 260 + index * 15, 190 - offset * 0.34);
-    ctx.stroke();
+  ctx.globalCompositeOperation = 'screen';
+  ctx.globalAlpha = 0.92;
+  const flameCount = phase === 'ignition' ? 5 : phase === 'smoke' ? 6 : 9;
+  for (let index = 0; index < flameCount; index += 1) {
+    const spread = flameCount <= 1 ? 0 : (index / (flameCount - 1) - 0.5) * 98;
+    const centerBoost = 1 - Math.min(1, Math.abs(spread) / 54) * 0.28;
+    const flicker = Math.sin(state.animationFrame * 0.24 + index * 1.73) * 0.18;
+    drawFireTongue(
+      ctx,
+      FURNACE_CENTER_X + spread + Math.sin(state.animationFrame * 0.19 + index) * 5,
+      FURNACE_MOUTH_Y + 34 + Math.abs(spread) * 0.08,
+      (1.55 + fireIntensity * 0.82 + flicker) * centerBoost,
+      state.animationFrame * 0.055 + index * 0.82,
+    );
   }
   ctx.restore();
 }
@@ -377,55 +404,36 @@ function drawFlareForeground(ctx: CanvasRenderingContext2D, state: GameState) {
   if (state.scene !== 'flaring') return;
   const progress = getFlareAnimationProgress(state.reactionFramesRemaining);
   const phase = getFlareAnimationPhase(state.reactionFramesRemaining);
-  const centerX = 337;
-  const centerY = 166;
-  const burstStrength = phase === 'ignition'
-    ? progress / 0.18
-    : phase === 'burst'
-      ? 1
+  const fireStrength = phase === 'ignition'
+    ? 0.72 + progress / 0.18 * 0.48
+    : phase === 'surge'
+      ? 1.34
       : phase === 'inferno'
-        ? 0.82
-        : Math.max(0.12, 1 - (progress - 0.78) / 0.22);
+        ? 1.15
+        : Math.max(0.35, 0.92 - (progress - 0.78) / 0.22 * 0.57);
 
   ctx.save();
   ctx.globalCompositeOperation = 'screen';
-
-  if (progress < 0.62) {
-    const shockwaveProgress = Math.min(1, progress / 0.62);
-    for (let ring = 0; ring < 3; ring += 1) {
-      const delayed = Math.max(0, shockwaveProgress - ring * 0.13);
-      if (delayed <= 0) continue;
-      ctx.globalAlpha = (1 - delayed) * (0.62 - ring * 0.12);
-      ctx.strokeStyle = ring === 0 ? '#fff7a6' : '#ff7438';
-      ctx.lineWidth = 7 - ring * 1.5;
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, 18 + delayed * (116 + ring * 20), 0, Math.PI * 2);
-      ctx.stroke();
-    }
-  }
-
-  ctx.globalAlpha = 0.94;
-  const flameCount = phase === 'ignition' ? 3 : phase === 'smoke' ? 4 : 8;
+  ctx.globalAlpha = 0.88;
+  const flameCount = phase === 'smoke' ? 3 : 5;
   for (let index = 0; index < flameCount; index += 1) {
-    const spread = flameCount <= 1 ? 0 : (index / (flameCount - 1) - 0.5) * 116;
-    const wobble = Math.sin(state.animationFrame * 0.37 + index * 1.81) * 7;
-    const heightScale = burstStrength * (0.72 + (index % 3) * 0.18);
+    const spread = flameCount <= 1 ? 0 : (index / (flameCount - 1) - 0.5) * 68;
+    const wobble = Math.sin(state.animationFrame * 0.31 + index * 1.81) * 4;
     drawFireTongue(
       ctx,
-      centerX + spread + wobble,
-      222 + Math.abs(spread) * 0.16,
-      0.72 + heightScale,
+      FURNACE_CENTER_X + spread + wobble,
+      FURNACE_MOUTH_Y + 28 + Math.abs(spread) * 0.08,
+      0.92 + fireStrength * (0.62 + (index % 3) * 0.12),
       state.animationFrame * 0.08 + index,
     );
   }
 
-  const sparkAlpha = phase === 'smoke' ? 0.28 : 0.95;
-  for (let index = 0; index < 28; index += 1) {
+  const sparkAlpha = phase === 'smoke' ? 0.24 : 0.80;
+  for (let index = 0; index < 24; index += 1) {
     const travel = (progress * (2.2 + index % 4 * 0.22) + index * 0.083) % 1;
-    const angle = -Math.PI * 0.92 + (index / 27) * Math.PI * 0.84;
-    const distance = 28 + travel * (92 + (index % 5) * 11);
-    const x = centerX + Math.cos(angle) * distance + Math.sin(index * 4.2) * 8;
-    const y = centerY + Math.sin(angle) * distance - travel * 46;
+    const x = FURNACE_CENTER_X
+      + Math.sin(index * 3.17 + state.animationFrame * 0.04) * (12 + travel * 48);
+    const y = FURNACE_MOUTH_Y + 12 - travel * (118 + (index % 5) * 12);
     ctx.globalAlpha = (1 - travel) * sparkAlpha;
     ctx.fillStyle = index % 3 === 0 ? '#fff59a' : index % 3 === 1 ? '#ffb12e' : '#ff5533';
     ctx.beginPath();
@@ -433,17 +441,19 @@ function drawFlareForeground(ctx: CanvasRenderingContext2D, state: GameState) {
     ctx.fill();
   }
 
-  if (phase === 'smoke') {
-    const smokeProgress = Math.min(1, (progress - 0.78) / 0.22);
+  const smokeProgress = Math.min(1, Math.max(0, (progress - 0.54) / 0.46));
+  if (smokeProgress > 0) {
     ctx.globalCompositeOperation = 'source-over';
-    for (let index = 0; index < 11; index += 1) {
-      const rise = Math.max(0, smokeProgress - index * 0.035);
-      const x = centerX + Math.sin(index * 2.37 + progress * 8) * (18 + index * 2.6);
-      const y = 163 - rise * (78 + index * 4) + index * 3;
-      const radius = 12 + rise * 17 + (index % 3) * 3;
+    for (let index = 0; index < 18; index += 1) {
+      const rise = (smokeProgress * 1.7 + index / 18) % 1;
+      const x = FURNACE_CENTER_X
+        + Math.sin(index * 2.37 + state.animationFrame * 0.035) * (12 + rise * 58);
+      const y = FURNACE_MOUTH_Y - 6 - rise * 174;
+      const radius = 15 + rise * 27 + (index % 3) * 3;
       const smoke = ctx.createRadialGradient(x, y, 1, x, y, radius);
-      smoke.addColorStop(0, `rgba(54, 39, 61, ${0.34 + rise * 0.22})`);
-      smoke.addColorStop(1, 'rgba(54, 39, 61, 0)');
+      smoke.addColorStop(0, `rgba(37, 32, 42, ${(0.32 + rise * 0.36) * smokeProgress})`);
+      smoke.addColorStop(0.55, `rgba(60, 51, 63, ${(0.24 + rise * 0.24) * smokeProgress})`);
+      smoke.addColorStop(1, 'rgba(48, 41, 52, 0)');
       ctx.fillStyle = smoke;
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
@@ -464,15 +474,22 @@ function drawFireTongue(
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(Math.sin(phase) * 0.1);
-  ctx.scale(scale, scale);
-  ctx.fillStyle = '#ff4a2f';
+  ctx.scale(scale * 0.72, scale * 1.16);
+  const outerFlame = ctx.createLinearGradient(0, 8, 0, -58);
+  outerFlame.addColorStop(0, '#ff3c24');
+  outerFlame.addColorStop(0.58, '#ff7a28');
+  outerFlame.addColorStop(1, '#ffd95a');
+  ctx.fillStyle = outerFlame;
   ctx.beginPath();
   ctx.moveTo(0, 7);
   ctx.bezierCurveTo(-17, -10, -10, -34, -3, -54);
   ctx.bezierCurveTo(2, -37, 17, -32, 14, -10);
   ctx.bezierCurveTo(12, 0, 7, 6, 0, 7);
   ctx.fill();
-  ctx.fillStyle = '#ffe96a';
+  const innerFlame = ctx.createLinearGradient(0, 5, 0, -34);
+  innerFlame.addColorStop(0, '#fff6a0');
+  innerFlame.addColorStop(1, '#ffca35');
+  ctx.fillStyle = innerFlame;
   ctx.beginPath();
   ctx.moveTo(0, 5);
   ctx.bezierCurveTo(-8, -7, -4, -20, 1, -31);
@@ -537,10 +554,10 @@ function drawWarning(
   if (furnace) drawFurnaceFrame(ctx, furnace, previewState, centerX - size * 0.33, centerY - size * 0.33, size * 0.66, size * 0.66);
 
   if (ratio >= festivalPreset.criticalRatio) {
-    ctx.font = '1000 17px ui-rounded, system-ui';
-    ctx.textAlign = 'left';
+    ctx.font = '1000 19px ui-rounded, system-ui';
+    ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    drawOutlinedText(ctx, '快發爐了！', 10, 252, '#fff56f', '#392675', 6, '#ff4d34', 2.5);
+    drawOutlinedText(ctx, '快發爐了！', 218, 278, '#fff56f', '#392675', 6, '#ff4d34', 2.5);
   }
   ctx.restore();
 }
@@ -583,11 +600,11 @@ function drawSceneOverlay(ctx: CanvasRenderingContext2D, state: GameState) {
     const pulse = 1 + Math.sin(state.animationFrame * 0.42) * 0.06;
     const title = phase === 'ignition'
       ? '糟了！火勢失控！'
-      : phase === 'burst'
-        ? '轟——！金爐發爐！'
+      : phase === 'surge'
+        ? '火焰猛衝上來！'
         : phase === 'inferno'
-          ? '發爐中！快退開！'
-          : '呼……只剩黑煙了';
+          ? '烈焰越竄越高！'
+          : '濃煙不停冒出……';
     ctx.save();
     ctx.translate(200, 248);
     ctx.scale(pulse, pulse);

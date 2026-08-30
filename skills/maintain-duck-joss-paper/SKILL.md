@@ -26,6 +26,9 @@ Maintain the Ghost Festival limited-edition game without coupling it back to the
 - Do not add visible bottom heat, progress, or rhythm meters unless the user explicitly requests them. Players judge danger from the furnace, flames, duck pose, warning color, and text.
 - Keep normal play near 19–22 seconds, relaxed play near 30–40 seconds, expert high-risk play near 14–17 seconds, and reckless tapping as an early flare failure unless the user requests a new balance target.
 - Keep the dedicated paper-supply card visible during play. Its pile and percentage must derive from the same remaining-paper ratio.
+- Keep the furnace visually dominant and the paper-supply card large enough to judge a final sprint at a glance.
+- Preserve the furnace's Taiwanese red cylindrical form, with visibly worn red paint, scorched soot, and restrained rust/corrosion marks.
+- Depict a flare as sustained tall flames rising from the furnace followed by dense smoke, not an explosion or radial shockwave.
 - Treat the final 22% heat range as the narrow red danger zone and preserve its larger high-risk efficiency reward unless the user requests another balance target.
 
 ## Classify the Change
@@ -44,7 +47,7 @@ Use generated raster art for new illustrations or sprite sheets. Inspect dimensi
 Current asset contracts:
 
 - `public/assets/joss-duck-poses.png`: 1536×1024, 3 columns × 2 rows, 512×512 cells.
-- `public/assets/joss-furnace-states.png`: 1254×1254, 2 columns × 2 rows, 627×627 cells.
+- `public/assets/joss-furnace-states.png`: 1278×1230, 2 columns × 2 rows, 639×615 cells.
 - `public/assets/ghost-festival-background.png`: background plate without gameplay characters.
 - Sprite coordinates live in `src/assets/*.json`; update metadata whenever the bitmap grid changes.
 

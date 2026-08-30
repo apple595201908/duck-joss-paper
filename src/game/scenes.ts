@@ -1,7 +1,7 @@
 import { FLARE_REACTION_FRAMES, GO_FRAMES } from './config';
 import type { GameState } from './model';
 
-export type FlareAnimationPhase = 'ignition' | 'burst' | 'inferno' | 'smoke';
+export type FlareAnimationPhase = 'ignition' | 'surge' | 'inferno' | 'smoke';
 
 export function getFlareAnimationProgress(reactionFramesRemaining: number): number {
   return Math.min(1, Math.max(0, 1 - reactionFramesRemaining / FLARE_REACTION_FRAMES));
@@ -10,7 +10,7 @@ export function getFlareAnimationProgress(reactionFramesRemaining: number): numb
 export function getFlareAnimationPhase(reactionFramesRemaining: number): FlareAnimationPhase {
   const progress = getFlareAnimationProgress(reactionFramesRemaining);
   if (progress < 0.18) return 'ignition';
-  if (progress < 0.48) return 'burst';
+  if (progress < 0.48) return 'surge';
   if (progress < 0.78) return 'inferno';
   return 'smoke';
 }
@@ -29,7 +29,7 @@ export function sceneStatusText(state: GameState): string {
   if (state.scene === 'flaring') {
     const phase = getFlareAnimationPhase(state.reactionFramesRemaining);
     if (phase === 'ignition') return '金爐火勢失控';
-    if (phase === 'burst') return '金爐發爐爆燃';
+    if (phase === 'surge') return '金爐火焰猛烈往上竄';
     if (phase === 'inferno') return '金爐猛烈燃燒中';
     return '發爐火勢轉為黑煙，即將顯示結果';
   }

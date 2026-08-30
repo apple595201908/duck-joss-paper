@@ -131,7 +131,7 @@ describe('duck joss-paper tap simulation', () => {
     expect(FLARE_REACTION_FRAMES).toBeGreaterThanOrEqual(120);
     expect(getFlareAnimationProgress(FLARE_REACTION_FRAMES)).toBe(0);
     expect(getFlareAnimationPhase(FLARE_REACTION_FRAMES)).toBe('ignition');
-    expect(getFlareAnimationPhase(Math.round(FLARE_REACTION_FRAMES * 0.70))).toBe('burst');
+    expect(getFlareAnimationPhase(Math.round(FLARE_REACTION_FRAMES * 0.70))).toBe('surge');
     expect(getFlareAnimationPhase(Math.round(FLARE_REACTION_FRAMES * 0.40))).toBe('inferno');
     expect(getFlareAnimationPhase(Math.round(FLARE_REACTION_FRAMES * 0.10))).toBe('smoke');
   });
