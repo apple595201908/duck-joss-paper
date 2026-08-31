@@ -168,6 +168,7 @@ clear / fail
 - 參考台灣街坊常見樣式的紅色圓筒金爐；紅漆帶有燒灼後的剝落、鏽蝕與燻黑痕跡，並提供平靜、升溫、危急與發爐四種狀態。
 - 進一步放大的主金爐與置中下方金紙剩餘台，讓金爐成為畫面主視覺，同時能快速判斷是否適合最後衝刺。
 - 飛行金紙、火星、熱浪、紅色警戒閃光與大型「快發爐了！」提示。
+- 接近發爐時，鴨鴨會一翼摀住嘴巴避開濃煙；玩家繼續連點時，另一翼仍會連貫投出金紙。
 - 社群分享圖與金爐主題 favicon。
 
 主要點陣美術為本專案專用資產，不沿用原版牛奶場景：
@@ -176,6 +177,7 @@ clear / fail
 | --- | --- |
 | `public/assets/ghost-festival-background.png` | 中元普渡廟埕背景 |
 | `public/assets/joss-duck-poses.png` | 3×2 鴨鴨動作圖集 |
+| `public/assets/joss-duck-near-flare-throw.png` | 快發爐時「摀嘴仍投紙」的透明專用動作圖 |
 | `public/assets/joss-furnace-states.png` | 2×2 金爐狀態圖集 |
 | `public/og.png` | 社群分享預覽圖 |
 | `public/favicon.svg` | 網站圖示 |
@@ -253,6 +255,7 @@ duck-joss-paper/
 │  ├─ assets/
 │  │  ├─ ghost-festival-background.png
 │  │  ├─ joss-duck-poses.png
+│  │  ├─ joss-duck-near-flare-throw.png
 │  │  └─ joss-furnace-states.png
 │  ├─ favicon.svg
 │  └─ og.png

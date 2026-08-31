@@ -50,6 +50,7 @@ Use generated raster art for new illustrations or sprite sheets. Inspect dimensi
 Current asset contracts:
 
 - `public/assets/joss-duck-poses.png`: 1536×1024, 3 columns × 2 rows, 512×512 cells.
+- `public/assets/joss-duck-near-flare-throw.png`: 1254×1254 transparent standalone sprite. At or above `criticalRatio`, idle frames use `nearFlare`; active tap frames use this asset so one wing stays over the beak while the other visibly throws.
 - `public/assets/joss-furnace-states.png`: 1278×1230, 2 columns × 2 rows, 639×615 cells.
 - `public/assets/ghost-festival-background.png`: background plate without gameplay characters.
 - Sprite coordinates live in `src/assets/*.json`; update metadata whenever the bitmap grid changes.

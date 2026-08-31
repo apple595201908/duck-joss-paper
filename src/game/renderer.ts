@@ -30,15 +30,19 @@ export function createGameRenderer(canvas: HTMLCanvasElement): GameRenderer {
 
   const background = new Image();
   const poses = new Image();
+  const nearFlareThrow = new Image();
   const furnace = new Image();
   let backgroundReady = false;
   let posesReady = false;
+  let nearFlareThrowReady = false;
   let furnaceReady = false;
   background.onload = () => { backgroundReady = true; };
   poses.onload = () => { posesReady = true; };
+  nearFlareThrow.onload = () => { nearFlareThrowReady = true; };
   furnace.onload = () => { furnaceReady = true; };
   background.src = '/assets/ghost-festival-background.png';
   poses.src = poseMetadata.image;
+  nearFlareThrow.src = '/assets/joss-duck-near-flare-throw.png';
   furnace.src = furnaceMetadata.image;
 
   const render = (state: GameState) => {
@@ -88,7 +92,12 @@ export function createGameRenderer(canvas: HTMLCanvasElement): GameRenderer {
 
     drawDangerVignette(context, state);
     drawFlareBackdrop(context, state);
-    drawCharacter(context, state, posesReady ? poses : null);
+    drawCharacter(
+      context,
+      state,
+      posesReady ? poses : null,
+      nearFlareThrowReady ? nearFlareThrow : null,
+    );
     drawFlyingPaper(context, state);
     drawFurnace(context, state, furnaceReady ? furnace : null);
     drawWarning(context, state, furnaceReady ? furnace : null);
@@ -104,6 +113,7 @@ export function createGameRenderer(canvas: HTMLCanvasElement): GameRenderer {
     destroy: () => {
       background.onload = null;
       poses.onload = null;
+      nearFlareThrow.onload = null;
       furnace.onload = null;
     },
   };
@@ -341,11 +351,34 @@ function drawCharacter(
   ctx: CanvasRenderingContext2D,
   state: GameState,
   poses: HTMLImageElement | null,
+  nearFlareThrow: HTMLImageElement | null,
 ) {
   const riskRatio = state.risk / festivalPreset.riskLimit;
   const isThrowing = state.scene === 'playing' && state.throwAnimationFrames > 0;
 
   const bob = state.scene === 'playing' ? Math.sin(state.animationFrame / (9 - state.speedLevel * 2)) * (2 + state.speedLevel) : 0;
+  if (nearFlareThrow && riskRatio >= festivalPreset.criticalRatio && isThrowing) {
+    const throwProgress = 1 - state.throwAnimationFrames / festivalPreset.tapThrowAnimationFrames;
+    const throwSnap = Math.sin(Math.min(1, Math.max(0, throwProgress)) * Math.PI);
+    const rapidPulse = state.speedLevel >= 2 ? Math.sin(state.animationFrame * 0.72) * 1.4 : 0;
+
+    ctx.save();
+    // At high risk the duck keeps one wing over its beak while the other wing
+    // follows through toward the furnace on every tap.
+    ctx.translate(174, 137 + bob);
+    ctx.rotate((-0.012 + throwSnap * 0.025) + rapidPulse * 0.0018);
+    ctx.translate(-174, -(137 + bob));
+    ctx.drawImage(
+      nearFlareThrow,
+      65 + throwSnap * 3.5,
+      29 + bob - throwSnap * 1.5,
+      220,
+      220,
+    );
+    ctx.restore();
+    return;
+  }
+
   if (poses) {
     const pose: PoseName = state.scene === 'clear'
       ? 'success'
